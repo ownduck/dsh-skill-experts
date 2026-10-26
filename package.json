@@ -1,6 +1,6 @@
 {
   "name": "@woosau/dsh-skill-experts",
-  "description": "DSH plugin: manage skill experts (persona + skills) and summon them as subagents",
+  "description": "DSH plugin: manage skill experts (persona + on-disk skills) in the sidebar and summon them as spawn subagents",
   "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
@@ -25,7 +25,8 @@
     "./src/*": "./src/*",
     "./package.json": "./package.json",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./locale/*.json": "./locale/*.json"
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
   },
   "dsh": {
     "bundle": {
@@ -42,7 +43,25 @@
       ]
     }
   },
+  "icon": "./icon.svg",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ownduck/dsh-skill-experts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ownduck/dsh-skill-experts/issues"
+  },
+  "homepage": "https://github.com/ownduck/dsh-skill-experts#readme",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "skill",
+    "subagent",
+    "agent-preset"
+  ],
   "engines": {
     "dsh": ">=0.2.0",
     "node": "^22.19.0 || >=24.0.0"
@@ -70,6 +89,7 @@
     "locale/*.json",
     "cordis.patch.yml",
     "assets/**",
+    "icon.svg",
     "lib/index.js",
     "lib/client.js",
     "lib/types/**/*.d.ts",
@@ -78,9 +98,11 @@
     "lib/typert.remote-client.js",
     "lib/typert.remote-client.d.ts",
     "README.md",
-    "README.zh-CN.md"
+    "README.zh-CN.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "node ./scripts/build.mjs"
+    "build": "node ./scripts/build.mjs",
+    "prepublishOnly": "node ./scripts/build.mjs"
   }
 }

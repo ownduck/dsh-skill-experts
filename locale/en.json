@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Skill experts",
+    "description": "Manage skill experts (persona + on-disk skills) in the sidebar and summon them as spawn subagents with list_skill_experts / summon_skill_expert."
+  }
+}
