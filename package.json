@@ -1,7 +1,7 @@
 {
   "name": "@woosau/dsh-skill-experts",
-  "description": "DSH plugin: manage skill experts (persona + on-disk skills) in the sidebar and summon them as spawn subagents",
-  "version": "0.1.0",
+  "description": "Manage skill experts in the sidebar and summon them from the composer or @ menu",
+  "version": "0.1.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

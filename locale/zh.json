@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "技能专家",
-    "description": "在侧栏管理技能专家（人格 + 磁盘技能），并通过 list_skill_experts / summon_skill_expert 以 spawn 子 Agent 召唤。"
+    "description": "在侧栏管理技能专家，并通过输入栏或 @ 召唤他们协助完成任务。"
   }
 }
