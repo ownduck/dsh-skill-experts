@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { SkillExpertsError } from './errors.ts'
 import {
-  catalogPath, expertDir, expertMetaPath, expertSkillsDir, isKebabName, presetIdFor, skillDir, skillMdPath,
+  catalogPath, expertDir, expertMetaPath, expertSkillsDir, expertsRoot, isKebabName, presetIdFor, skillDir, skillMdPath,
 } from './paths.ts'
 import { parseSkillMd, serializeSkillMd } from './skill-md.ts'
 import {
@@ -18,8 +18,11 @@ import type {
   SkillSummary,
 } from './types.ts'
 
-/** Seed folder names shipped with the package (legacy installs without `builtin`). */
-const LEGACY_BUILTIN_IDS = new Set(['code-reviewer', 'tech-writer'])
+/**
+ * Current package seed ids. Used when `meta.json` omits `builtin` so older
+ * on-disk seeds still resolve as built-in. Filled in `ensureSeeded`.
+ */
+const SEED_BUILTIN_IDS = new Set<string>()
 
 function seedIds(seedRoot: string): string[] {
   if (!existsSync(seedRoot)) return []
@@ -29,10 +32,48 @@ function seedIds(seedRoot: string): string[] {
     .sort()
 }
 
+/**
+ * Drop catalog builtins that are no longer shipped under `assets/seed`.
+ * Customs (`builtin: false`) are left alone even if the id matches an old seed.
+ * @param experts - current catalog expert ids.
+ * @param seedIdSet - ids present in the package seed root.
+ * @returns updated id list and whether anything changed.
+ */
+function retireAbsentSeedBuiltins(
+  experts: string[],
+  seedIdSet: Set<string>,
+): { experts: string[]; changed: boolean } {
+  let next = [...experts]
+  let changed = false
+  for (const id of experts) {
+    if (seedIdSet.has(id)) continue
+    const metaPath = expertMetaPath(id)
+    if (!existsSync(metaPath)) {
+      next = next.filter(item => item !== id)
+      forgetExpert(id, next)
+      changed = true
+      continue
+    }
+    let isBuiltin = false
+    try {
+      isBuiltin = readMeta(id).builtin === true
+    } catch {
+      // Leave unreadable non-seed entries for list/get to surface.
+      continue
+    }
+    if (!isBuiltin) continue
+    rmSync(expertDir(id), { recursive: true, force: true })
+    next = next.filter(item => item !== id)
+    forgetExpert(id, next)
+    changed = true
+  }
+  return { experts: next, changed }
+}
+
 function resolveBuiltin(id: string, rawBuiltin: unknown): boolean {
   if (rawBuiltin === true) return true
   if (rawBuiltin === false) return false
-  return LEGACY_BUILTIN_IDS.has(id)
+  return SEED_BUILTIN_IDS.has(id)
 }
 
 function sourceOf(meta: ExpertMeta): ExpertSource {
@@ -154,45 +195,76 @@ function allocExpertId(name: string): string {
 
 /**
  * Ensure seed experts exist and stamp builtin / enablement defaults.
+ * Missing seeds are copied into `$DSH_HOME` (fill-if-absent); existing local
+ * copies are never overwritten. Plugin upgrades that add new seed folders
+ * therefore deploy on the next Host load even when catalog.json already exists.
  * @param seedRoot - package `assets/seed` directory.
  */
 export function ensureSeeded(seedRoot = fileURLToPath(new URL('../assets/seed/', import.meta.url))): void {
   const seeds = seedIds(seedRoot)
-  for (const id of seeds) LEGACY_BUILTIN_IDS.add(id)
+  SEED_BUILTIN_IDS.clear()
+  for (const id of seeds) SEED_BUILTIN_IDS.add(id)
+  const seedIdSet = new Set(seeds)
+  expertsRoot()
 
-  if (!existsSync(catalogPath())) {
-    mkdirSync(expertDir('_tmp'), { recursive: true })
-    rmSync(expertDir('_tmp'), { recursive: true, force: true })
-    const experts: string[] = []
-    for (const id of seeds) {
+  const catalog = readCatalog()
+  let experts = [...catalog.experts]
+  let changed = false
+  const newlyAdded: string[] = []
+
+  for (const id of seeds) {
+    const metaPath = expertMetaPath(id)
+    if (!existsSync(metaPath)) {
       cpSync(join(seedRoot, id), expertDir(id), { recursive: true })
-      const meta = readMeta(id)
-      writeMeta({ ...meta, builtin: true })
-      experts.push(id)
+      writeMeta({ ...readMeta(id), builtin: true })
+      changed = true
     }
-    writeCatalog({ revision: 1, experts: experts.sort() })
-  } else {
-    // Migrate legacy metas that omit `builtin`.
-    for (const id of readCatalog().experts) {
-      try {
-        const meta = readMeta(id)
-        const path = expertMetaPath(id)
-        const raw = JSON.parse(readFileSync(path, 'utf8')) as { builtin?: unknown }
-        if (raw.builtin === undefined && meta.builtin === true) writeMeta(meta)
-      } catch {
-        // Skip unreadable experts; list/get will surface them later.
-      }
+    if (!experts.includes(id)) {
+      experts = [...experts, id]
+      newlyAdded.push(id)
+      changed = true
+    }
+  }
+
+  const retired = retireAbsentSeedBuiltins(experts, seedIdSet)
+  if (retired.changed) {
+    experts = retired.experts
+    changed = true
+  }
+
+  if (changed) {
+    writeCatalog({
+      revision: catalog.revision > 0 ? catalog.revision + 1 : 1,
+      experts,
+    })
+    for (const id of newlyAdded) {
+      enableNewExpert(id, experts)
+    }
+  }
+
+  // Migrate legacy metas that omit `builtin`.
+  for (const id of experts) {
+    try {
+      const meta = readMeta(id)
+      const path = expertMetaPath(id)
+      const raw = JSON.parse(readFileSync(path, 'utf8')) as { builtin?: unknown }
+      if (raw.builtin === undefined && meta.builtin === true) writeMeta(meta)
+    } catch {
+      // Skip unreadable experts; list/get will surface them later.
     }
   }
   ensureState(readCatalog().experts)
 }
 
-/** List expert summaries in catalog order. */
+/**
+ * List expert summaries: built-ins first (catalog-relative order), then
+ * customs in creation / catalog-append order.
+ */
 export function listExperts(): ExpertSummary[] {
   const catalog = readCatalog()
   ensureState(catalog.experts)
   const enabled = enabledSet()
-  return catalog.experts.flatMap(id => {
+  const rows = catalog.experts.flatMap(id => {
     try {
       const detail = toDetail(readMeta(id), enabled.has(id))
       return [{
@@ -209,6 +281,9 @@ export function listExperts(): ExpertSummary[] {
       return []
     }
   })
+  const builtins = rows.filter(row => row.source === 'builtin')
+  const customs = rows.filter(row => row.source === 'custom')
+  return [...builtins, ...customs]
 }
 
 /** Load one expert. */
@@ -287,7 +362,7 @@ export function getSkill(expertId: string, skillName: string): SkillDetail {
 
 /** Create or update a skill. */
 export function saveSkill(expertId: string, input: SkillSaveInput): SkillDetail {
-  readMeta(expertId)
+  const meta = readMeta(expertId)
   const name = input.name.trim()
   const description = input.description.trim()
   const prompt = input.prompt.trim()
@@ -301,8 +376,16 @@ export function saveSkill(expertId: string, input: SkillSaveInput): SkillDetail 
   }
   const fromName = input.fromName?.trim()
   const target = skillDir(expertId, name)
-  if (fromName !== undefined && fromName !== '' && fromName !== name) {
-    const from = skillDir(expertId, fromName)
+  const renaming = fromName !== undefined && fromName !== '' && fromName !== name
+  const creating = !renaming && !existsSync(target)
+  if (meta.builtin === true && (creating || renaming)) {
+    throw new SkillExpertsError(
+      'builtin-cannot-add-skill',
+      `built-in expert "${expertId}" cannot add or rename skills`,
+    )
+  }
+  if (renaming) {
+    const from = skillDir(expertId, fromName!)
     if (!existsSync(from)) throw new SkillExpertsError('skill-not-found', `skill "${fromName}" not found`)
     if (existsSync(target)) throw new SkillExpertsError('skill-exists', `skill "${name}" already exists`)
     renameSync(from, target)
@@ -325,7 +408,13 @@ export function saveSkill(expertId: string, input: SkillSaveInput): SkillDetail 
 
 /** Delete one skill folder. */
 export function deleteSkill(expertId: string, skillName: string): void {
-  readMeta(expertId)
+  const meta = readMeta(expertId)
+  if (meta.builtin === true) {
+    throw new SkillExpertsError(
+      'builtin-cannot-delete-skill',
+      `built-in expert "${expertId}" skills cannot be deleted`,
+    )
+  }
   const path = skillDir(expertId, skillName)
   if (!existsSync(path)) throw new SkillExpertsError('skill-not-found', `skill "${skillName}" not found`)
   rmSync(path, { recursive: true, force: true })

@@ -3,10 +3,16 @@ import type { ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDet
 declare function readMeta(id: string): ExpertMeta;
 /**
  * Ensure seed experts exist and stamp builtin / enablement defaults.
+ * Missing seeds are copied into `$DSH_HOME` (fill-if-absent); existing local
+ * copies are never overwritten. Plugin upgrades that add new seed folders
+ * therefore deploy on the next Host load even when catalog.json already exists.
  * @param seedRoot - package `assets/seed` directory.
  */
 export declare function ensureSeeded(seedRoot?: any): void;
-/** List expert summaries in catalog order. */
+/**
+ * List expert summaries: built-ins first (catalog-relative order), then
+ * customs in creation / catalog-append order.
+ */
 export declare function listExperts(): ExpertSummary[];
 /** Load one expert. */
 export declare function getExpert(id: string): ExpertDetail;

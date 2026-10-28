@@ -2,6 +2,13 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { getExpert, listExperts } from './catalog.ts'
+import {
+  clearChildId,
+  getContinueChat,
+  resolveChildId,
+  setChildId,
+  type ContinuableChildHint,
+} from './continue-mode.ts'
 import { presetIdFor } from './paths.ts'
 
 const LIST = 'list_skill_experts'
@@ -20,6 +27,12 @@ type SubagentActivation = {
   readonly dispose: () => Promise<unknown> | unknown
 }
 
+type SubagentEndInfo = {
+  readonly id: string
+  readonly stopReason: string
+  readonly lastAssistantMessage?: readonly ContentBlock[]
+}
+
 type SubagentsService = {
   startActivation: (request: {
     provider: string
@@ -32,6 +45,13 @@ type SubagentsService = {
       agentPreset: string
     }
   }) => Promise<SubagentActivation>
+  sendMessage?: (
+    sender: unknown,
+    targetId: string,
+    content: readonly ContentBlock[],
+    options: { signal: AbortSignal },
+  ) => Promise<string>
+  listChildren?: (parentSessionId: string, signal?: AbortSignal) => Promise<readonly ContinuableChildHint[]>
 }
 
 /**
@@ -86,6 +106,73 @@ async function awaitActivation(run: SubagentActivation, signal: AbortSignal): Pr
 }
 
 /**
+ * Wait for one child's activation epoch to end after sendMessage.
+ * @param ctx - Host context emitting `subagent/end`.
+ * @param childId - durable child session id.
+ * @param signal - tool abort signal.
+ */
+function awaitSubagentEnd(ctx: Context, childId: string, signal: AbortSignal): Promise<SubagentResult> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const finish = (error: unknown | undefined, result?: SubagentResult) => {
+      if (settled) return
+      settled = true
+      signal.removeEventListener('abort', onAbort)
+      disposeListen()
+      if (error !== undefined) reject(error)
+      else resolve(result ?? { output: [], stopReason: 'error' })
+    }
+    const onAbort = () => {
+      finish(signal.reason ?? new Error('aborted'))
+    }
+    const disposeListen = ctx.on('subagent/end', (info: SubagentEndInfo) => {
+      if (info.id !== childId) return
+      finish(undefined, {
+        stopReason: info.stopReason,
+        output: info.lastAssistantMessage ?? [],
+      })
+    })
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) onAbort()
+  })
+}
+
+/**
+ * Build the task prompt blocks for a skill expert.
+ * @param expertName - display name.
+ * @param task - short brief from the parent.
+ */
+function expertPrompt(expertName: string, task: string): ContentBlock[] {
+  return [{
+    type: 'text' as const,
+    text: [
+      `You are the skill expert "${expertName}".`,
+      'Follow your persona and use your available skills as needed.',
+      '',
+      '## Task',
+      task,
+    ].join('\n'),
+  }]
+}
+
+/**
+ * Map a settled result to the summon tool payload or throw.
+ * @param expertName - display name for errors.
+ * @param result - child terminal result.
+ */
+function answerFromResult(expertName: string, result: SubagentResult): { expert: string; answer: string } {
+  const answer = textBlocks(result.output).trim()
+  if (result.stopReason !== 'completed') {
+    const detailText = answer.length > 0 ? ` Partial output:\n${answer}` : ''
+    throw new Error(`skill expert "${expertName}" ended with ${result.stopReason}.${detailText}`)
+  }
+  if (answer === '') {
+    throw new Error(`skill expert "${expertName}" returned no usable text`)
+  }
+  return { expert: expertName, answer }
+}
+
+/**
  * Register list/summon tools and system-prompt guidance (agency-style).
  * Avoid importing `@deepseek-ai/dsh-tools`: linked installs resolve from the
  * package realpath and cannot see Host-bundled DSH packages beyond the peers
@@ -130,10 +217,11 @@ export function registerSummonTools(ctx: Context): () => void {
     description:
       'Summon one skill expert as a spawn subagent with that expert\'s Agent Preset '
       + '(persona + isolated skills) and return its answer to the parent. '
-      + 'If the user message contains a skill-expert chip, @DisplayName, or '
-      + '[Skill expert chip ...] marker for this expert, you MUST call this immediately '
-      + '(once per named expert). Do not greet or answer that @ mention yourself first. '
+      + 'If the user message contains a skill-expert chip or @DisplayName for this expert, '
+      + 'you MUST call this immediately (once per named expert). '
+      + 'Do not greet or answer that @ mention yourself first. '
       + 'Pass a short task brief from the remaining user text. '
+      + 'When continue-chat is on for this session, the same expert reuses its prior child. '
       + 'Do not use the generic subagent tool for skill experts.',
     parameters: {
       type: 'object',
@@ -170,7 +258,7 @@ export function registerSummonTools(ctx: Context): () => void {
     },
     isConcurrencySafe: () => true,
     async execute(args: { expert?: string; task?: string }, exec: {
-      agent?: { session: { header: { parentSession?: unknown } } }
+      agent?: { id: string; session: { header: { parentSession?: unknown } } }
       signal: AbortSignal
     }) {
       const agent = exec.agent
@@ -194,40 +282,64 @@ export function registerSummonTools(ctx: Context): () => void {
         throw new Error('subagents.startActivation unavailable')
       }
 
-      const prompt = [{
-        type: 'text' as const,
-        text: [
-          `You are the skill expert "${detail.name}".`,
-          'Follow your persona and use your available skills as needed.',
-          '',
-          '## Task',
-          task,
-        ].join('\n'),
-      }]
+      const prompt = expertPrompt(detail.name, task)
+      const parentId = String(agent.id)
+      const continueOn = getContinueChat(parentId)
 
-      // Agency pattern: delivery "caller", await result, return answer in the tool output.
-      const started = await subagents.startActivation({
-        provider: 'spawn',
-        label: detail.name,
-        delivery: 'caller',
-        signal: exec.signal,
-        request: {
-          parent: agent,
-          prompt,
-          agentPreset: presetIdFor(detail.id),
-        },
-      })
+      const startFresh = async (): Promise<{ expert: string; answer: string }> => {
+        const started = await subagents.startActivation({
+          provider: 'spawn',
+          label: detail.name,
+          delivery: 'caller',
+          signal: exec.signal,
+          request: {
+            parent: agent,
+            prompt,
+            agentPreset: presetIdFor(detail.id),
+          },
+        })
+        // Always record the child used this turn so toggling continue back on
+        // can resume the latest spawn for this expert.
+        setChildId(parentId, detail.id, started.childId)
+        const result = await awaitActivation(started, exec.signal)
+        return answerFromResult(detail.name, result)
+      }
 
-      const result = await awaitActivation(started, exec.signal)
-      const answer = textBlocks(result.output).trim()
-      if (result.stopReason !== 'completed') {
-        const detailText = answer.length > 0 ? ` Partial output:\n${answer}` : ''
-        throw new Error(`skill expert "${detail.name}" ended with ${result.stopReason}.${detailText}`)
+      if (continueOn && typeof subagents.sendMessage === 'function') {
+        let catalog: readonly ContinuableChildHint[] | undefined
+        if (typeof subagents.listChildren === 'function') {
+          try {
+            catalog = await subagents.listChildren(parentId, exec.signal)
+          } catch {
+            catalog = undefined
+          }
+        }
+        const childId = resolveChildId(parentId, detail.id, detail.name, catalog)
+        if (childId !== undefined) {
+          const resume = new AbortController()
+          const onParentAbort = () => resume.abort(exec.signal.reason)
+          exec.signal.addEventListener('abort', onParentAbort, { once: true })
+          try {
+            const ended = awaitSubagentEnd(ctx, childId, resume.signal)
+            await subagents.sendMessage(agent, childId, prompt, { signal: exec.signal })
+            const result = await ended
+            setChildId(parentId, detail.id, childId)
+            return answerFromResult(detail.name, result)
+          } catch (error) {
+            resume.abort(error)
+            clearChildId(parentId, detail.id)
+            const message = error instanceof Error ? error.message : String(error)
+            // Abort should not fall through to a fresh spawn.
+            if (exec.signal.aborted) throw error
+            if (/aborted/i.test(message)) throw error
+            // Cold-resume / delivery failure: open a new child for this expert.
+          } finally {
+            exec.signal.removeEventListener('abort', onParentAbort)
+          }
+        }
       }
-      if (answer === '') {
-        throw new Error(`skill expert "${detail.name}" returned no usable text`)
-      }
-      return { expert: detail.name, answer }
+
+      return startFresh()
     },
   }
 
@@ -241,7 +353,7 @@ export function registerSummonTools(ctx: Context): () => void {
   const disposePrompt = ctx.systemPrompt.section({
     name: 'skill-experts',
     order: 420,
-    text: (context?: { agent?: { session?: { header?: { parentSession?: unknown } } } }) => {
+    text: (context?: { agent?: { session?: { header?: { parentSession?: unknown } }; id?: string } }) => {
       if (context?.agent?.session?.header?.parentSession !== undefined) return ''
       const experts = listExperts().filter(row => row.enabled)
       if (experts.length === 0) {
@@ -250,6 +362,8 @@ export function registerSummonTools(ctx: Context): () => void {
           'No skill experts are enabled. The user can enable or add them in the Skill experts sidebar.',
         ].join('\n')
       }
+      const parentId = context?.agent?.id
+      const continueOn = typeof parentId === 'string' && getContinueChat(parentId)
       const lines = experts
         .map(row => `- ${row.name} (id: ${row.id}, source: ${row.source}, skills: ${row.skillCount})`)
         .join('\n')
@@ -258,20 +372,22 @@ export function registerSummonTools(ctx: Context): () => void {
         'This Host provides domain skill experts (each backed by an Agent Preset with persona + skills).',
         'A session may already use one of these presets as its own agent; that is independent of @ summoning.',
         '',
-        'Composer / `@` selection inserts a native reference chip. On submit it expands to',
-        '`@DisplayName` plus a `[Skill expert chip id="…" name="…"]` mandatory-summon marker.',
-        'Whenever the user message contains such a chip, `@DisplayName` for an enabled expert,',
-        'or that marker: you MUST call `summon_skill_expert` once for **each** named expert',
-        'before any user-facing reply to that @ mention. Use the remaining user text (excluding chip markers) as `task`.',
-        'Even a short greeting or question is a valid task — still summon.',
+        'Composer / `@` selection inserts a native reference chip that serializes as `@DisplayName`.',
+        'Whenever the user message names an enabled expert that way, you MUST call `summon_skill_expert`',
+        'once for **each** named expert before any user-facing reply to that @ mention.',
+        'Use the remaining user text as `task`. Even a short greeting is a valid task — still summon.',
         'Do not answer the @ mention yourself first. Wait for each tool `answer`, then briefly synthesize.',
+        continueOn
+          ? 'Continue-chat is on for this session: keep calling `summon_skill_expert` for the same expert '
+            + '(do not switch to `send_message`); the Host reuses that expert\'s prior child when possible.'
+          : '',
         '',
         'Call `list_skill_experts` only when the user did not name an expert but the task clearly matches one.',
         'Do not use the generic `subagent` or `subagent_fork` tools in place of `summon_skill_expert` for these experts.',
         '',
         'Enabled experts:',
         lines,
-      ].join('\n')
+      ].filter(line => line !== '').join('\n')
     },
   })
 

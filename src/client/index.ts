@@ -23,6 +23,8 @@ declare module '@deepseek-ai/dsh-api-remotes/client' {
       saveExpert(input: import('../types.ts').ExpertSaveInput): Promise<{ ok: true; value: import('../types.ts').ExpertDetail } | { ok: false; error: unknown }>
       deleteExpert(id: string): Promise<{ ok: true; value: void } | { ok: false; error: unknown }>
       setEnabled(id: string, enabled: boolean): Promise<{ ok: true; value: import('../types.ts').ExpertDetail } | { ok: false; error: unknown }>
+      getContinueChat(sessionId: string): Promise<{ ok: true; value: boolean } | { ok: false; error: unknown }>
+      setContinueChat(sessionId: string, enabled: boolean): Promise<{ ok: true; value: boolean } | { ok: false; error: unknown }>
       getSkill(expertId: string, skillName: string): Promise<{ ok: true; value: import('../types.ts').SkillDetail } | { ok: false; error: unknown }>
       saveSkill(expertId: string, input: import('../types.ts').SkillSaveInput): Promise<{ ok: true; value: import('../types.ts').SkillDetail } | { ok: false; error: unknown }>
       deleteSkill(expertId: string, skillName: string): Promise<{ ok: true; value: void } | { ok: false; error: unknown }>

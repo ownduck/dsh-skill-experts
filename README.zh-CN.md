@@ -4,17 +4,19 @@
 
 社区 DeepSeek Harness 插件：在侧栏管理**技能专家**（人格 + 技能），并通过输入栏 / `@` 召唤。非 DeepSeek AI 官方产品。
 
-首次启动会种子示例：**代码审阅**、**技术写作**。
+首次启动会种子四个内置专家：**Frontend Developer**、**Product Manager**、**UI Designer**、**Copywriter**（下属 skill 为上游全文；说明见 [`assets/seed/UPSTREAM.md`](assets/seed/UPSTREAM.md)）。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![DSH plugin](https://img.shields.io/badge/DSH-plugin-0f766e.svg)](https://github.com/ownduck/dsh-skill-experts)
 
 ## 功能
 
-- 侧栏 **技能专家**：新建 / 编辑 / 删除，启用停用，搜索筛选
-- 为每位专家管理技能（`SKILL.md` 等）；支持导入技能 zip
+- 侧栏 **技能专家**：新建 / 编辑 / 删除自定义专家，启用停用，搜索筛选
+- 为每位专家管理技能（`SKILL.md` 等）；**自定义**专家支持导入技能 zip
+- **内置**专家：可改人格与技能正文；不可删除专家，也不可新增 / 导入 / 重命名 / 删除其技能
 - 专家包导入 / 导出（含管理模式批量导出）
 - 输入栏 **技能专家** 按钮与 `@` 分组「技能专家」插入同一引用标签；发送即可召唤
+- 输入栏可选 **续聊**：同一主会话内再次召唤同一专家时复用子会话
 - 已启用专家也可选为会话的 Agent 预设（与 `@` 召唤相互独立）
 
 ## 安装
@@ -29,7 +31,11 @@ dsh plugin --profile desktop add @woosau/dsh-skill-experts
 dsh plugin --profile web add @woosau/dsh-skill-experts
 ```
 
-GitHub：`dsh plugin --profile desktop add github:ownduck/dsh-skill-experts`
+从 GitHub 安装（`main` 最新）：
+
+```powershell
+dsh plugin --profile desktop add github:ownduck/dsh-skill-experts
+```
 
 重启 DSH，打开侧栏 **技能专家**，再开一个新的标准会话即可使用。
 
@@ -44,7 +50,8 @@ dsh plugin --profile desktop remove @woosau/dsh-skill-experts
 1. 打开侧栏 **技能专家**，新建或编辑专家并启用
 2. 在对话输入栏点 **技能专家**，或输入 `@` 选择「技能专家」分组中的专家
 3. 写好任务后发送；主会话会召唤对应专家并汇总结果
-4. 需要时也可在会话设置里把某位专家选为当前 Agent 预设
+4. 需要接着聊时打开 **续聊**，再次召唤同一专家会复用原子会话
+5. 需要时也可在会话设置里把某位专家选为当前 Agent 预设
 
 ### 专家包格式
 
@@ -67,4 +74,4 @@ skill-experts.zip          # 批量导出
 
 ## 许可证
 
-MIT
+MIT。种子 skill 正文改编自上游 MIT 内容，见 [`assets/seed/UPSTREAM.md`](assets/seed/UPSTREAM.md)。

@@ -37,6 +37,18 @@ export default class SkillExpertsRemote extends TypertRemoteService {
     /** @returns expert summaries including source and enablement. */
     list(): Promise<readonly ExpertSummary[]>;
     /**
+     * Whether continue-chat is on for this main session.
+     * @param sessionId - durable parent session id.
+     */
+    getContinueChat(sessionId: string): Promise<boolean>;
+    /**
+     * Turn continue-chat on or off for this main session.
+     * Turning off drops stored child-session pointers for that parent.
+     * @param sessionId - durable parent session id.
+     * @param enabled - desired preference.
+     */
+    setContinueChat(sessionId: string, enabled: boolean): Promise<boolean>;
+    /**
      * Enable or disable one expert.
      * @param id - expert id.
      * @param enabled - desired state.

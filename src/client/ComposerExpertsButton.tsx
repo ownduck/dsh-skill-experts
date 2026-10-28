@@ -1,7 +1,7 @@
 /** Composer tool-row control: agency-style discovery popover for skill experts. */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ExpertsKey } from './locales.ts'
 import { ExpertsIcon } from './ExpertsIcon.tsx'
 import { buildExpertChip, type ExpertReferenceInsert } from './composer-chip.ts'
@@ -21,6 +21,8 @@ export interface ComposerExpertsButtonProps {
   readonly peekEnabled: () => readonly ComposerExpertRow[]
   readonly listEnabled: () => Promise<readonly ComposerExpertRow[]>
   readonly insertChip: (chip: ExpertReferenceInsert) => boolean
+  readonly getContinueChat: () => Promise<boolean>
+  readonly setContinueChat: (enabled: boolean) => Promise<boolean>
 }
 
 function placementFor(wrap: HTMLElement | null): 'above' | 'below' {
@@ -44,6 +46,8 @@ export function ComposerExpertsButton(props: ComposerExpertsButtonProps): ReactN
   })
   const [error, setError] = useState('')
   const [placement, setPlacement] = useState<'above' | 'below'>('above')
+  const [continueChat, setContinueChatState] = useState(false)
+  const [continueBusy, setContinueBusy] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const genRef = useRef(0)
 
@@ -60,6 +64,14 @@ export function ComposerExpertsButton(props: ComposerExpertsButtonProps): ReactN
     }).catch(() => undefined)
     return () => { cancelled = true }
   }, [props.listEnabled])
+
+  useEffect(() => {
+    let cancelled = false
+    void props.getContinueChat().then(value => {
+      if (!cancelled) setContinueChatState(value)
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [props.getContinueChat])
 
   useEffect(() => {
     if (!open) return
@@ -120,33 +132,70 @@ export function ComposerExpertsButton(props: ComposerExpertsButtonProps): ReactN
     else setError(t('error.generic'))
   }
 
+  const onContinueChange = (next: boolean) => {
+    if (continueBusy) return
+    setContinueBusy(true)
+    setContinueChatState(next)
+    void props.setContinueChat(next).then(value => {
+      setContinueChatState(value)
+    }).catch(() => {
+      setContinueChatState(!next)
+      setError(t('error.generic'))
+    }).finally(() => {
+      setContinueBusy(false)
+    })
+  }
+
   return (
     <div className={styles.wrap} ref={wrapRef}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className={styles.trigger}
-        aria-label={t('composer.button')}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        title={t('composer.button')}
-        onClick={() => {
-          if (open) {
-            close()
-            return
-          }
-          // Seed from sync cache before paint so the panel is not empty on first frame.
-          const peek = props.peekEnabled()
-          if (peek.length > 0) setRows(peek)
-          // Place once on open — avoid post-paint flip that feels like a bounce.
-          setPlacement(placementFor(wrapRef.current))
-          setOpen(true)
-        }}
-      >
-        <ExpertsIcon size={14} />
-        <span>{t('composer.button')}</span>
-      </Button>
+      <div className={styles.cluster}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={styles.trigger}
+          aria-label={t('composer.button')}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          title={t('composer.button')}
+          onClick={() => {
+            if (open) {
+              close()
+              return
+            }
+            // Seed from sync cache before paint so the panel is not empty on first frame.
+            const peek = props.peekEnabled()
+            if (peek.length > 0) setRows(peek)
+            // Place once on open — avoid post-paint flip that feels like a bounce.
+            setPlacement(placementFor(wrapRef.current))
+            setOpen(true)
+          }}
+        >
+          <ExpertsIcon size={14} />
+          <span>{t('composer.button')}</span>
+        </Button>
+        <div className={styles.continue} title={t('composer.continueHint')}>
+          <Switch
+            checked={continueChat}
+            disabled={continueBusy}
+            label={t('composer.continue')}
+            title={t('composer.continueHint')}
+            className={styles.continueSwitch}
+            onChange={onContinueChange}
+          />
+          <button
+            type="button"
+            className={styles.continueLabel}
+            disabled={continueBusy}
+            tabIndex={-1}
+            aria-hidden="true"
+            title={t('composer.continueHint')}
+            onClick={() => onContinueChange(!continueChat)}
+          >
+            {t('composer.continue')}
+          </button>
+        </div>
+      </div>
       {open && (
         <div
           className={styles.menu}

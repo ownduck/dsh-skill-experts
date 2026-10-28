@@ -165,6 +165,17 @@ export function registerComposerExperts(ctx: Context): () => void {
       peekEnabled,
       listEnabled,
       insertChip: (chip: ExpertReferenceInsert) => insertIntoSession(sessionId, chip),
+      getContinueChat: async () => {
+        const remote = ctx.remote.skillExperts
+        const result = await remote.getContinueChat(String(sessionId))
+        return result.ok && result.value === true
+      },
+      setContinueChat: async (enabled: boolean) => {
+        const remote = ctx.remote.skillExperts
+        const result = await remote.setContinueChat(String(sessionId), enabled)
+        if (!result.ok) throw result.error
+        return result.value === true
+      },
     }),
   }, ComposerExpertsButton))
 

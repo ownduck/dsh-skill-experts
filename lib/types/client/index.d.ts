@@ -47,6 +47,20 @@ declare module '@deepseek-ai/dsh-api-remotes/client' {
                 ok: false;
                 error: unknown;
             }>;
+            getContinueChat(sessionId: string): Promise<{
+                ok: true;
+                value: boolean;
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
+            setContinueChat(sessionId: string, enabled: boolean): Promise<{
+                ok: true;
+                value: boolean;
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
             getSkill(expertId: string, skillName: string): Promise<{
                 ok: true;
                 value: import('../types.ts').SkillDetail;

@@ -21,8 +21,8 @@ export interface ExpertReferenceInsert {
 export declare function expertClipboardText(name: string): string;
 /**
  * Model-facing serialization for a skill-expert chip.
- * Keeps the visible `@Name` marker and adds a mandatory summon directive so
- * `@` mentions always trigger `summon_skill_expert` (session preset selection is separate).
+ * Same as clipboard (`@Name` + NBSP). Summon behavior is owned by system prompt /
+ * tool descriptions — do not inject directives into the user-visible draft text.
  * @param expert - enabled expert row.
  */
 export declare function expertModelSerializeText(expert: ExpertChipSource): string;

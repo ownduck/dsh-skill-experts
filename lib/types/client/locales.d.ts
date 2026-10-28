@@ -45,7 +45,11 @@ export declare const zh: {
     'manage.selectAll': string;
     'manage.clearSelection': string;
     'manage.exportSelected': string;
+    'manage.deleteSelected': string;
+    'manage.confirmDeleteSelected': string;
     'composer.button': string;
+    'composer.continue': string;
+    'composer.continueHint': string;
     'composer.atSection': string;
     'composer.search': string;
     'composer.empty': string;
@@ -80,6 +84,9 @@ export declare const zh: {
     'error.name-required': string;
     'error.persona-required': string;
     'error.builtin-cannot-delete': string;
+    'error.builtin-cannot-delete-skill': string;
+    'error.builtin-cannot-add-skill': string;
+    'error.builtin-cannot-import-skill': string;
     'error.skill-name-required': string;
     'error.skill-name-kebab': string;
     'error.skill-description-required': string;
@@ -137,7 +144,11 @@ export declare const en: {
     'manage.selectAll': string;
     'manage.clearSelection': string;
     'manage.exportSelected': string;
+    'manage.deleteSelected': string;
+    'manage.confirmDeleteSelected': string;
     'composer.button': string;
+    'composer.continue': string;
+    'composer.continueHint': string;
     'composer.atSection': string;
     'composer.search': string;
     'composer.empty': string;
@@ -172,6 +183,9 @@ export declare const en: {
     'error.name-required': string;
     'error.persona-required': string;
     'error.builtin-cannot-delete': string;
+    'error.builtin-cannot-delete-skill': string;
+    'error.builtin-cannot-add-skill': string;
+    'error.builtin-cannot-import-skill': string;
     'error.skill-name-required': string;
     'error.skill-name-kebab': string;
     'error.skill-description-required': string;

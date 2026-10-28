@@ -14,13 +14,10 @@ describe('composer-chip', () => {
     assert.ok(!expertClipboardText('泼妇').includes('summon_skill_expert'))
   })
 
-  it('model serialize keeps @Name and requires summon_skill_expert', () => {
-    const text = expertModelSerializeText({ id: 'custom-po-fu', name: '泼妇' })
-    assert.ok(text.startsWith(`@泼妇\u00A0`))
-    assert.match(text, /id="custom-po-fu"/u)
-    assert.match(text, /name="泼妇"/u)
-    assert.match(text, /summon_skill_expert/u)
-    assert.match(text, /Required:/u)
+  it('model serialize matches clipboard @Name + NBSP', () => {
+    const expert = { id: 'custom-po-fu', name: '泼妇' }
+    assert.equal(expertModelSerializeText(expert), expertClipboardText(expert.name))
+    assert.ok(!expertModelSerializeText(expert).includes('summon_skill_expert'))
   })
 
   it('buildExpertChip uses UI clipboard text and stable source', () => {

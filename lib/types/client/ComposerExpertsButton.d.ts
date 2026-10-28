@@ -15,6 +15,8 @@ export interface ComposerExpertsButtonProps {
     readonly peekEnabled: () => readonly ComposerExpertRow[];
     readonly listEnabled: () => Promise<readonly ComposerExpertRow[]>;
     readonly insertChip: (chip: ExpertReferenceInsert) => boolean;
+    readonly getContinueChat: () => Promise<boolean>;
+    readonly setContinueChat: (enabled: boolean) => Promise<boolean>;
 }
 /** Agency-style anchored discovery menu for inserting a skill-expert chip. */
 export declare function ComposerExpertsButton(props: ComposerExpertsButtonProps): ReactNode;

@@ -213,12 +213,27 @@ export function ExpertsPanel({
     })
   }, [rows, query, sourceFilter, statusFilter])
 
-  const filteredIds = useMemo(
-    () => (filtered ?? []).map(row => row.id),
+  // Manage mode only selects custom experts; built-ins stay non-checkable.
+  const selectableFilteredIds = useMemo(
+    () => (filtered ?? []).filter(row => row.source === 'custom').map(row => row.id),
     [filtered],
   )
-  const allFilteredSelected = filteredIds.length > 0
-    && filteredIds.every(id => selectedIds.has(id))
+  const allFilteredSelected = selectableFilteredIds.length > 0
+    && selectableFilteredIds.every(id => selectedIds.has(id))
+
+  useEffect(() => {
+    if (!manageMode) return
+    const allowed = new Set(selectableFilteredIds)
+    setSelectedIds(current => {
+      let changed = false
+      const next = new Set<string>()
+      for (const id of current) {
+        if (allowed.has(id)) next.add(id)
+        else changed = true
+      }
+      return changed ? next : current
+    })
+  }, [manageMode, selectableFilteredIds])
 
   const exitManageMode = () => {
     setManageMode(false)
@@ -230,10 +245,12 @@ export function ExpertsPanel({
       setSelectedIds(new Set())
       return
     }
-    setSelectedIds(new Set(filteredIds))
+    setSelectedIds(new Set(selectableFilteredIds))
   }
 
   const toggleSelected = (id: string) => {
+    const row = (rows ?? []).find(item => item.id === id)
+    if (row === undefined || row.source !== 'custom') return
     setSelectedIds(current => {
       const next = new Set(current)
       if (next.has(id)) next.delete(id)
@@ -313,6 +330,27 @@ export function ExpertsPanel({
     }
   }
 
+  const onDeleteSelected = async () => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    const confirmText = t('manage.confirmDeleteSelected').replace('{count}', String(ids.length))
+    if (!window.confirm(confirmText)) return
+    setBusy(true)
+    setError('')
+    try {
+      for (const id of ids) {
+        await deleteExpert(id)
+      }
+      setSelectedIds(new Set())
+      await reload()
+    } catch (err) {
+      setError(formatRemoteError(err, t))
+      await reload()
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className={styles.root}>
       <div className={styles.toolbar}>
@@ -385,21 +423,31 @@ export function ExpertsPanel({
               <input
                 type="checkbox"
                 checked={allFilteredSelected}
-                disabled={filteredIds.length === 0 || busy}
+                disabled={selectableFilteredIds.length === 0 || busy}
                 onChange={toggleSelectAll}
               />
               <span>
                 {allFilteredSelected ? t('manage.clearSelection') : t('manage.selectAll')}
               </span>
             </label>
-            <button
-              type="button"
-              className={styles.manageExportBtn}
-              disabled={selectedIds.size === 0 || busy}
-              onClick={() => { void onExportSelected() }}
-            >
-              {t('manage.exportSelected')}
-            </button>
+            <div className={styles.manageActions}>
+              <button
+                type="button"
+                className={styles.manageExportBtn}
+                disabled={selectedIds.size === 0 || busy}
+                onClick={() => { void onExportSelected() }}
+              >
+                {t('manage.exportSelected')}
+              </button>
+              <button
+                type="button"
+                className={styles.manageDeleteBtn}
+                disabled={selectedIds.size === 0 || busy}
+                onClick={() => { void onDeleteSelected() }}
+              >
+                {t('manage.deleteSelected')}
+              </button>
+            </div>
           </>
         ) : <span />}
         <button
@@ -426,7 +474,7 @@ export function ExpertsPanel({
               <div className={styles.cardBody}>
                 <div className={styles.cardHeader}>
                   <div className={styles.cardIdentity}>
-                    {manageMode && (
+                    {manageMode && row.source === 'custom' && (
                       <input
                         type="checkbox"
                         className={styles.cardSelect}
@@ -543,6 +591,7 @@ export function ExpertsPanel({
       <SkillModal
         t={t}
         dialog={skillDialog}
+        get={get}
         getSkill={getSkill}
         saveSkill={saveSkill}
         deleteSkill={deleteSkill}
@@ -831,7 +880,7 @@ function SkillsModal(props: {
             {t('action.close')}
           </button>
           <div className={styles.modalFooterRight}>
-            {expertId !== '' && (
+            {expertId !== '' && detail?.source === 'custom' && (
               <>
                 <div className={styles.importSkillsBtn}>
                   <button
@@ -914,6 +963,7 @@ function SkillsModal(props: {
 function SkillModal(props: {
   t: ExpertsPanelInjected['t']
   dialog: SkillDialog
+  get: ExpertsPanelInjected['get']
   getSkill: ExpertsPanelInjected['getSkill']
   saveSkill: ExpertsPanelInjected['saveSkill']
   deleteSkill: ExpertsPanelInjected['deleteSkill']
@@ -931,11 +981,14 @@ function SkillModal(props: {
   const [absolutePath, setAbsolutePath] = useState('')
   const [extraFiles, setExtraFiles] = useState<readonly string[]>([])
   const [fromName, setFromName] = useState<string | undefined>(undefined)
+  const [expertSource, setExpertSource] = useState<ExpertSource | null>(null)
   const [error, setError] = useState('')
+  const builtinExpert = expertSource === 'builtin'
 
   useEffect(() => {
     if (!open) return
     setError('')
+    setExpertSource(null)
     if (skillName === undefined) {
       setName('')
       setDescription('')
@@ -943,12 +996,24 @@ function SkillModal(props: {
       setAbsolutePath('')
       setExtraFiles([])
       setFromName(undefined)
-      return
+      let cancelled = false
+      void (async () => {
+        try {
+          const expert = await props.get(expertId)
+          if (!cancelled) setExpertSource(expert.source)
+        } catch (err) {
+          if (!cancelled) setError(formatRemoteError(err, t))
+        }
+      })()
+      return () => { cancelled = true }
     }
     let cancelled = false
     void (async () => {
       try {
-        const detail = await props.getSkill(expertId, skillName)
+        const [detail, expert] = await Promise.all([
+          props.getSkill(expertId, skillName),
+          props.get(expertId),
+        ])
         if (cancelled) return
         setName(detail.name)
         setDescription(detail.description)
@@ -956,12 +1021,13 @@ function SkillModal(props: {
         setAbsolutePath(detail.absolutePath)
         setExtraFiles(detail.extraFiles)
         setFromName(detail.name)
+        setExpertSource(expert.source)
       } catch (err) {
         if (!cancelled) setError(formatRemoteError(err, t))
       }
     })()
     return () => { cancelled = true }
-  }, [open, expertId, skillName, props.getSkill, t])
+  }, [open, expertId, skillName, props.get, props.getSkill, t])
 
   const save = async () => {
     if (expertId === '') return
@@ -997,6 +1063,10 @@ function SkillModal(props: {
   }
 
   const remove = async () => {
+    if (builtinExpert) {
+      setError(t('error.builtin-cannot-delete-skill'))
+      return
+    }
     if (fromName === undefined || expertId === '') {
       props.onClose()
       return
@@ -1027,7 +1097,7 @@ function SkillModal(props: {
             {t('action.cancel')}
           </button>
           <div className={styles.modalFooterRight}>
-            {fromName !== undefined && (
+            {fromName !== undefined && !builtinExpert && (
               <button type="button" className={styles.dangerBtn} onClick={() => void remove()} disabled={props.busy}>
                 {t('action.delete')}
               </button>
@@ -1047,10 +1117,12 @@ function SkillModal(props: {
         </label>
         <input
           id="sk-name"
-          data-modal-autofocus
+          data-modal-autofocus={!builtinExpert}
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder={t('skill.namePlaceholder')}
+          readOnly={builtinExpert}
+          disabled={builtinExpert}
         />
       </div>
       <div className={styles.field}>

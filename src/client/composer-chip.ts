@@ -29,19 +29,12 @@ export function expertClipboardText(name: string): string {
 
 /**
  * Model-facing serialization for a skill-expert chip.
- * Keeps the visible `@Name` marker and adds a mandatory summon directive so
- * `@` mentions always trigger `summon_skill_expert` (session preset selection is separate).
+ * Same as clipboard (`@Name` + NBSP). Summon behavior is owned by system prompt /
+ * tool descriptions — do not inject directives into the user-visible draft text.
  * @param expert - enabled expert row.
  */
 export function expertModelSerializeText(expert: ExpertChipSource): string {
-  const name = expert.name.trim().replace(/^@+/u, '')
-  return [
-    expertClipboardText(name),
-    `[Skill expert chip id="${expert.id}" name="${name}". `,
-    'Required: call summon_skill_expert now with this expert (id or exact name) ',
-    'and the remaining user text as task. ',
-    'Do not answer for this @ mention yourself — summon first, then briefly synthesize.]',
-  ].join('')
+  return expertClipboardText(expert.name)
 }
 
 /**

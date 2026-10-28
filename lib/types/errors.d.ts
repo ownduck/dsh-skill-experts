@@ -1,6 +1,6 @@
 /** Stable failure reasons for skill-experts Host → Client localization. */
 /** Reason tokens written into RemoteError details and mapped by Client dictionaries. */
-export type SkillExpertsReason = 'expert-not-found' | 'name-required' | 'persona-required' | 'builtin-cannot-delete' | 'skill-name-required' | 'skill-name-kebab' | 'skill-description-required' | 'skill-prompt-required' | 'skill-not-found' | 'skill-exists' | 'zip-empty' | 'zip-invalid-layout' | 'zip-missing-skill-md' | 'zip-missing-meta';
+export type SkillExpertsReason = 'expert-not-found' | 'name-required' | 'persona-required' | 'builtin-cannot-delete' | 'builtin-cannot-delete-skill' | 'builtin-cannot-add-skill' | 'builtin-cannot-import-skill' | 'skill-name-required' | 'skill-name-kebab' | 'skill-description-required' | 'skill-prompt-required' | 'skill-not-found' | 'skill-exists' | 'zip-empty' | 'zip-invalid-layout' | 'zip-missing-skill-md' | 'zip-missing-meta';
 /** Host-side failure carrying a stable reason; English message is diagnostic only. */
 export declare class SkillExpertsError extends Error {
     readonly reason: SkillExpertsReason;

@@ -3,7 +3,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, posix } from 'node:path'
 import JSZip from 'jszip'
-import { saveSkill } from './catalog.ts'
+import { readMeta, saveSkill } from './catalog.ts'
 import { SkillExpertsError } from './errors.ts'
 import { isKebabName, skillDir, skillMdPath } from './paths.ts'
 import { parseSkillMd, serializeSkillMd } from './skill-md.ts'
@@ -20,6 +20,12 @@ interface ImportedSkill {
  * @returns imported skill names.
  */
 export async function importSkillsZip(expertId: string, bytes: Uint8Array): Promise<string[]> {
+  if (readMeta(expertId).builtin === true) {
+    throw new SkillExpertsError(
+      'builtin-cannot-import-skill',
+      `built-in expert "${expertId}" cannot import skills`,
+    )
+  }
   const zip = await JSZip.loadAsync(bytes)
   const entries = Object.keys(zip.files).filter(name => !zip.files[name]!.dir)
   if (entries.length === 0) throw new SkillExpertsError('zip-empty', 'zip is empty')

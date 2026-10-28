@@ -85,6 +85,7 @@ export function MarkdownField(props: MarkdownFieldProps): ReactNode {
   return (
     <div
       className={styles.markdownField}
+      data-skill-experts-md=""
       data-color-mode={colorMode}
       id={props.id}
       style={{ minHeight: height }}

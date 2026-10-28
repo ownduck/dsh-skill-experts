@@ -11,6 +11,10 @@ import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typer
 import {
   deleteExpert, deleteSkill, ensureSeeded, getExpert, getSkill, listExperts, saveExpert, saveSkill, setEnabled,
 } from './catalog.ts'
+import {
+  getContinueChat as readContinueChat,
+  setContinueChat as writeContinueChat,
+} from './continue-mode.ts'
 import { isSkillExpertsError, type SkillExpertsReason } from './errors.ts'
 import { exportExpertZip, exportExpertsZip, importExpertZip } from './expert-zip.ts'
 import { ExpertPresetSync } from './preset-sync.ts'
@@ -113,6 +117,26 @@ export default class SkillExpertsRemote extends TypertRemoteService {
   @Remote('list')
   async list(): Promise<readonly ExpertSummary[]> {
     return listExperts()
+  }
+
+  /**
+   * Whether continue-chat is on for this main session.
+   * @param sessionId - durable parent session id.
+   */
+  @Remote('getContinueChat')
+  async getContinueChat(sessionId: string): Promise<boolean> {
+    return readContinueChat(String(sessionId ?? ''))
+  }
+
+  /**
+   * Turn continue-chat on or off for this main session.
+   * Turning off drops stored child-session pointers for that parent.
+   * @param sessionId - durable parent session id.
+   * @param enabled - desired preference.
+   */
+  @Remote('setContinueChat')
+  async setContinueChat(sessionId: string, enabled: boolean): Promise<boolean> {
+    return writeContinueChat(String(sessionId ?? ''), enabled === true)
   }
 
   /**

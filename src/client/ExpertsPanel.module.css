@@ -58,7 +58,14 @@
   cursor: pointer;
 }
 
+.manageActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .manageExportBtn,
+.manageDeleteBtn,
 .manageToggleBtn {
   box-sizing: border-box;
   height: 28px;
@@ -74,6 +81,11 @@
   white-space: nowrap;
 }
 
+.manageDeleteBtn {
+  border-color: color-mix(in srgb, #c44 35%, transparent);
+  color: var(--dsw-alias-state-error-primary, #c44);
+}
+
 .manageToggleBtn {
   min-width: 6.5em;
   margin-inline-start: auto;
@@ -85,13 +97,20 @@
   border-color: color-mix(in srgb, CanvasText 18%, transparent);
 }
 
+.manageDeleteBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, #c44 8%, Canvas);
+  border-color: color-mix(in srgb, #c44 50%, transparent);
+}
+
 .manageExportBtn:disabled,
+.manageDeleteBtn:disabled,
 .manageToggleBtn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
 .manageExportBtn:focus-visible,
+.manageDeleteBtn:focus-visible,
 .manageToggleBtn:focus-visible {
   outline: none;
   border-color: color-mix(in srgb, CanvasText 28%, transparent);

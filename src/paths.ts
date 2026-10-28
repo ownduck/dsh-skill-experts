@@ -21,6 +21,11 @@ export function statePath(): string {
   return join(expertsRoot(), 'state.json')
 }
 
+/** Per-parent continue-chat preference and child-session map. */
+export function continuePath(): string {
+  return join(expertsRoot(), 'continue.json')
+}
+
 /** One expert directory. */
 export function expertDir(id: string): string {
   return join(expertsRoot(), id)
