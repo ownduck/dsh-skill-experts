@@ -108,6 +108,6 @@
   "scripts": {
     "build": "node ./scripts/build.mjs",
     "test": "node ./scripts/run-tests.mjs",
-    "prepublishOnly": "node ./scripts/build.mjs"
+    "prepublishOnly": "npm install --omit=peer --no-fund --no-audit && node ./scripts/build.mjs"
   }
 }
