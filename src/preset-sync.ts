@@ -2,7 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
-import { expertIds, getExpert } from './catalog.ts'
+import { getExpert, listExperts } from './catalog.ts'
 import { expertSkillsDir, presetIdFor } from './paths.ts'
 
 type Disposer = () => Promise<void>
@@ -17,14 +17,14 @@ export class ExpertPresetSync {
 
   constructor(private readonly ctx: Context) {}
 
-  /** Rebuild registrations to match disk. */
+  /** Rebuild registrations to match enabled experts on disk. */
   async sync(): Promise<void> {
     const presets = this.ctx.get('agentPresets')
     if (presets === undefined) {
       this.ctx.logger.warn('skill-experts: agentPresets service missing; expert presets not registered')
       return
     }
-    const live = new Set(expertIds())
+    const live = new Set(listExperts().filter(row => row.enabled).map(row => row.id))
     for (const [id, dispose] of [...this.disposers]) {
       if (live.has(id)) continue
       this.disposers.delete(id)
@@ -49,13 +49,14 @@ export class ExpertPresetSync {
   }
 }
 
-function buildDefinition(expertId: string): PresetDefinition {
+/** Build the Agent Preset used when summoning one expert (isolated skills). */
+export function buildDefinition(expertId: string): PresetDefinition {
   const expert = getExpert(expertId)
   const skillsDir = expertSkillsDir(expertId)
   return {
     id: presetIdFor(expertId),
     name: expert.name,
-    description: `Skill expert: ${expert.name}`,
+    description: expert.description !== '' ? expert.description : `Skill expert: ${expert.name}`,
     order: 100,
     plugins: [
       {

@@ -15,12 +15,8 @@
       "default": "./lib/client.js"
     },
     "./remote": {
-      "types": "./lib/typert.remote-client.d.ts",
-      "default": "./lib/typert.remote-client.js"
-    },
-    "./typert": {
-      "types": "./lib/typert.host.d.ts",
-      "default": "./lib/typert.host.js"
+      "types": "./lib/types/remote.d.ts",
+      "default": "./lib/remote.js"
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
@@ -39,7 +35,8 @@
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-slots",
-        "@deepseek-ai/dsh-client-ui-layout"
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-input-trigger"
       ]
     }
   },
@@ -76,12 +73,20 @@
     "@deepseek-ai/dsh-typert-protocol": "*"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/cordis": { "optional": true },
-    "@deepseek-ai/dsh-home-paths": { "optional": true },
-    "@deepseek-ai/dsh-typert-protocol": { "optional": true }
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-home-paths": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-typert-protocol": {
+      "optional": true
+    }
   },
   "dependencies": {
+    "@uiw/react-md-editor": "^4.1.5",
     "jszip": "^3.10.1",
+    "pinyin-pro": "^3.29.5",
     "yaml": "^2.8.0",
     "zod": "^4.4.3"
   },
@@ -91,10 +96,9 @@
     "assets/**",
     "icon.svg",
     "lib/index.js",
+    "lib/remote.js",
     "lib/client.js",
     "lib/types/**/*.d.ts",
-    "lib/typert.host.js",
-    "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
     "lib/typert.remote-client.d.ts",
     "README.md",
@@ -103,6 +107,7 @@
   ],
   "scripts": {
     "build": "node ./scripts/build.mjs",
+    "test": "node ./scripts/run-tests.mjs",
     "prepublishOnly": "node ./scripts/build.mjs"
   }
 }

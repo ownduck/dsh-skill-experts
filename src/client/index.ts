@@ -22,10 +22,14 @@ declare module '@deepseek-ai/dsh-api-remotes/client' {
       get(id: string): Promise<{ ok: true; value: import('../types.ts').ExpertDetail } | { ok: false; error: unknown }>
       saveExpert(input: import('../types.ts').ExpertSaveInput): Promise<{ ok: true; value: import('../types.ts').ExpertDetail } | { ok: false; error: unknown }>
       deleteExpert(id: string): Promise<{ ok: true; value: void } | { ok: false; error: unknown }>
+      setEnabled(id: string, enabled: boolean): Promise<{ ok: true; value: import('../types.ts').ExpertDetail } | { ok: false; error: unknown }>
       getSkill(expertId: string, skillName: string): Promise<{ ok: true; value: import('../types.ts').SkillDetail } | { ok: false; error: unknown }>
       saveSkill(expertId: string, input: import('../types.ts').SkillSaveInput): Promise<{ ok: true; value: import('../types.ts').SkillDetail } | { ok: false; error: unknown }>
       deleteSkill(expertId: string, skillName: string): Promise<{ ok: true; value: void } | { ok: false; error: unknown }>
       importZip(expertId: string, zipBase64: string): Promise<{ ok: true; value: { imported: readonly string[] } } | { ok: false; error: unknown }>
+      exportExpert(id: string): Promise<{ ok: true; value: { filename: string; zipBase64: string } } | { ok: false; error: unknown }>
+      exportExperts(ids: readonly string[]): Promise<{ ok: true; value: { filename: string; zipBase64: string } } | { ok: false; error: unknown }>
+      importExpert(zipBase64: string): Promise<{ ok: true; value: { count: number; ids: readonly string[] } } | { ok: false; error: unknown }>
     }
   }
 }

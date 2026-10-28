@@ -20,6 +20,8 @@ const clientExternals = [
   'react',
   'react/jsx-runtime',
   'react/jsx-dev-runtime',
+  'react-dom',
+  'react-dom/client',
   'zod',
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-api-remotes/client',
@@ -33,21 +35,29 @@ const clientExternals = [
 mkdirSync(join(root, 'lib'), { recursive: true })
 mkdirSync(join(root, 'lib', 'types'), { recursive: true })
 
-await esbuild.build({
+const hostExternal = {
   absWorkingDir: root,
-  entryPoints: [join(root, 'src', 'index.ts')],
-  outfile: join(root, 'lib', 'index.js'),
   bundle: true,
   platform: 'node',
   format: 'esm',
   target: 'node22',
   sourcemap: false,
-  // Bundle jszip/yaml; leave DSH/Cordis peers to the Host profile.
-  external: [
-    '@deepseek-ai/*',
-    'zod',
-    'node:*',
-  ],
+  // Match dsh-custom-env: keep node_modules external. Bundling CJS deps (jszip)
+  // into ESM emits `__require("process")`, which Cordis' ESM loader rejects.
+  // Runtime deps resolve from this package's node_modules; DSH peers from Host.
+  packages: 'external',
+}
+
+await esbuild.build({
+  ...hostExternal,
+  entryPoints: [join(root, 'src', 'index.ts')],
+  outfile: join(root, 'lib', 'index.js'),
+})
+
+await esbuild.build({
+  ...hostExternal,
+  entryPoints: [join(root, 'src', 'remote.ts')],
+  outfile: join(root, 'lib', 'remote.js'),
 })
 
 await esbuild.build({
@@ -80,15 +90,33 @@ await esbuild.build({
       })
     },
   }, {
-    name: 'css-modules-inline',
+    name: 'css-inline',
     setup(build) {
+      const { createHash } = require('node:crypto')
       const { readFileSync } = require('node:fs')
+      const styleId = path => {
+        const digest = createHash('sha1').update(path).digest('hex').slice(0, 10)
+        return `dsh-skill-experts-css-${digest}`
+      }
+      const injectCss = (css, id) => [
+        `const css = ${JSON.stringify(css)};`,
+        `if (typeof document !== "undefined" && !document.getElementById(${JSON.stringify(id)})) {`,
+        `  const style = document.createElement("style");`,
+        `  style.id = ${JSON.stringify(id)};`,
+        `  style.textContent = css;`,
+        `  document.head.appendChild(style);`,
+        `}`,
+      ].join('\n')
+
       build.onLoad({ filter: /\.module\.css$/ }, (args) => {
         const css = readFileSync(args.path, 'utf8')
         const names = new Set()
         for (const match of css.matchAll(/\.([A-Za-z_][\w-]*)/g)) names.add(match[1])
+        // Prefix by stylesheet stem so ExpertsPanel vs ComposerExperts locals do not collide.
+        const stem = args.path.replace(/\\/g, '/').split('/').pop()?.replace(/\.module\.css$/i, '')
+          ?? createHash('sha1').update(args.path).digest('hex').slice(0, 8)
         const locals = Object.create(null)
-        for (const name of names) locals[name] = `SkillExperts_${name}`
+        for (const name of names) locals[name] = `SkillExperts_${stem}_${name}`
         let transformed = css
         for (const name of names) {
           transformed = transformed.replaceAll(
@@ -96,18 +124,30 @@ await esbuild.build({
             `.${locals[name]}`,
           )
         }
+        // One style tag per stylesheet. A shared id lets the first module win and
+        // silently drops later sheets (e.g. ComposerExperts after ExpertsPanel).
         const js = [
-          `const css = ${JSON.stringify(transformed)};`,
-          `if (typeof document !== "undefined" && !document.getElementById("dsh-skill-experts-css")) {`,
-          `  const style = document.createElement("style");`,
-          `  style.id = "dsh-skill-experts-css";`,
-          `  style.textContent = css;`,
-          `  document.head.appendChild(style);`,
-          `}`,
+          injectCss(transformed, styleId(args.path)),
           `export default ${JSON.stringify(locals)};`,
         ].join('\n')
         return { contents: js, loader: 'js' }
       })
+
+      // Plain CSS from deps (e.g. @uiw/react-md-editor) → inject into document.head.
+      build.onLoad({ filter: /\.css$/ }, (args) => {
+        if (args.path.includes('.module.css')) return undefined
+        const css = readFileSync(args.path, 'utf8')
+        return {
+          contents: `${injectCss(css, styleId(args.path))}\nexport default {};`,
+          loader: 'js',
+        }
+      })
+
+      // Source .less is unused when ESM resolves to prebuilt .css; stub if pulled.
+      build.onLoad({ filter: /\.less$/ }, () => ({
+        contents: 'export default {};',
+        loader: 'js',
+      }))
     },
   }],
   banner: {
@@ -150,4 +190,4 @@ if (result.status !== 0) {
   process.stderr.write('tsc declaration emit reported errors; continuing.\n')
 }
 
-process.stdout.write('build: wrote lib/index.js and lib/client.js\n')
+process.stdout.write('build: wrote lib/index.js, lib/remote.js, and lib/client.js\n')

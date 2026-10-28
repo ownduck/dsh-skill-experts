@@ -1,8 +1,7 @@
-/** Parse and serialize SKILL.md with optional note frontmatter. */
+/** Parse and serialize SKILL.md (`name` + `description` frontmatter, body as prompt). */
 export interface SkillFrontmatter {
     name: string;
     description: string;
-    note?: string;
 }
 export interface ParsedSkillMd {
     frontmatter: SkillFrontmatter;
@@ -23,5 +22,4 @@ export declare function serializeSkillMd(fields: {
     name: string;
     description: string;
     prompt: string;
-    note?: string;
 }): string;

@@ -1,79 +1,179 @@
-/** Model tools: list and summon skill experts as spawn subagents. */
+/** Model tools: list and summon skill experts as spawn subagents (agency-style await). */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { defineTool } from '@deepseek-ai/dsh-tools'
 import { getExpert, listExperts } from './catalog.ts'
 import { presetIdFor } from './paths.ts'
 
 const LIST = 'list_skill_experts'
 const SUMMON = 'summon_skill_expert'
 
+type ContentBlock = { readonly type: string; readonly text?: string }
+
+type SubagentResult = {
+  readonly stopReason: string
+  readonly output: readonly ContentBlock[]
+}
+
+type SubagentActivation = {
+  readonly childId: string
+  readonly result: Promise<SubagentResult>
+  readonly dispose: () => Promise<unknown> | unknown
+}
+
+type SubagentsService = {
+  startActivation: (request: {
+    provider: string
+    label: string
+    delivery: 'caller' | 'parent'
+    signal: AbortSignal
+    request: {
+      parent: unknown
+      prompt: readonly ContentBlock[]
+      agentPreset: string
+    }
+  }) => Promise<SubagentActivation>
+}
+
+/**
+ * Concatenate text blocks from a subagent result (agency `textBlocks`).
+ * @param blocks - child output blocks.
+ */
+function textBlocks(blocks: readonly ContentBlock[]): string {
+  return blocks
+    .filter(block => block.type === 'text' && typeof block.text === 'string')
+    .map(block => block.text ?? '')
+    .join('')
+}
+
+/**
+ * Await an activation the way agency does: race abort, then always dispose.
+ * @param run - activation handle from `startActivation`.
+ * @param signal - tool abort signal.
+ */
+async function awaitActivation(run: SubagentActivation, signal: AbortSignal): Promise<SubagentResult> {
+  let disposal: Promise<unknown> | undefined
+  const dispose = () => {
+    if (disposal === undefined) {
+      try {
+        disposal = Promise.resolve(run.dispose())
+      } catch (error) {
+        disposal = Promise.reject(error)
+      }
+    }
+    return disposal
+  }
+
+  let rejectAborted!: (reason: unknown) => void
+  const aborted = new Promise<never>((_resolve, reject) => {
+    rejectAborted = reject
+  })
+  const onAbort = () => {
+    void dispose().catch(() => undefined)
+    rejectAborted(signal.reason ?? new Error('aborted'))
+  }
+  signal.addEventListener('abort', onAbort, { once: true })
+  try {
+    if (signal.aborted) {
+      onAbort()
+      await dispose()
+      throw signal.reason ?? new Error('aborted')
+    }
+    return await Promise.race([run.result, aborted])
+  } finally {
+    signal.removeEventListener('abort', onAbort)
+    await dispose()
+  }
+}
+
 /**
  * Register list/summon tools and system-prompt guidance (agency-style).
+ * Avoid importing `@deepseek-ai/dsh-tools`: linked installs resolve from the
+ * package realpath and cannot see Host-bundled DSH packages beyond the peers
+ * the Loader already exposes (typert / home-paths).
  * @param ctx - Host context with tools / subagents / systemPrompt.
  * @returns disposer.
  */
 export function registerSummonTools(ctx: Context): () => void {
-  const listTool = defineTool({
+  const listTool = {
     name: LIST,
     description:
-      'List skill experts managed by dsh-skill-experts (id, name, avatar, skillCount, presetId). '
-      + 'Call this before summon_skill_expert when choosing an expert by name. '
+      'List enabled skill experts managed by dsh-skill-experts '
+      + '(id, name, avatar, skillCount, presetId, source). '
+      + 'Call this before summon_skill_expert only when the user did not name an expert. '
       + 'Do not use the generic subagent tool for these experts.',
-    parameters: {},
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {},
+    },
     output: {
       schema: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          experts: { type: 'array', required: true, items: { type: 'json' } },
+          experts: { type: 'array', items: {} },
         },
+        required: ['experts'],
       },
-      render: (_args, value) => [{
-        type: 'text',
+      render: (_args: unknown, value: unknown) => [{
+        type: 'text' as const,
         text: JSON.stringify(value, undefined, 2),
       }],
     },
     async execute() {
-      return { experts: [...listExperts()] }
+      return { experts: listExperts().filter(row => row.enabled) }
     },
-  })
+  }
 
-  const summonTool = defineTool({
+  const summonTool = {
     name: SUMMON,
     description:
-      'Summon one skill expert as an independent spawn subagent with that expert\'s Agent Preset '
-      + '(persona + isolated skills). Pass the expert id or exact display name from list_skill_experts, '
-      + 'and a short task brief. Do not use the generic subagent tool for skill experts. '
-      + 'This starts the child and returns immediately; wait for the completion notice, then synthesize for the user.',
+      'Summon one skill expert as a spawn subagent with that expert\'s Agent Preset '
+      + '(persona + isolated skills) and return its answer to the parent. '
+      + 'If the user message contains a skill-expert chip, @DisplayName, or '
+      + '[Skill expert chip ...] marker for this expert, you MUST call this immediately '
+      + '(once per named expert). Do not greet or answer that @ mention yourself first. '
+      + 'Pass a short task brief from the remaining user text. '
+      + 'Do not use the generic subagent tool for skill experts.',
     parameters: {
-      expert: {
-        type: 'string',
-        required: true,
-        description: 'Expert id or exact display name from list_skill_experts.',
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        expert: {
+          type: 'string',
+          description: 'Expert id or exact display name from list_skill_experts.',
+        },
+        task: {
+          type: 'string',
+          description:
+            'Short brief from the user message after the expert chip: goal, constraints, '
+            + 'and relevant paths. Do not paste large source dumps. Even a short greeting '
+            + 'or question is a valid task.',
+        },
       },
-      task: {
-        type: 'string',
-        required: true,
-        description: 'Short brief: goal, constraints, and relevant paths. Do not paste large source dumps.',
-      },
+      required: ['expert', 'task'],
     },
     output: {
       schema: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          kind: { type: 'string', required: true, const: 'activation' },
-          subagentId: { type: 'string', required: true },
+          expert: { type: 'string' },
+          answer: { type: 'string' },
         },
+        required: ['expert', 'answer'],
       },
-      render: (_args, value) => [{ type: 'text', text: `started skill expert subagent ${value.subagentId}` }],
+      render: (_args: unknown, value: { answer: string }) => [{
+        type: 'text' as const,
+        text: value.answer,
+      }],
     },
     isConcurrencySafe: () => true,
-    async execute(args, exec) {
-      const agent = exec.agent as Agent | undefined
+    async execute(args: { expert?: string; task?: string }, exec: {
+      agent?: { session: { header: { parentSession?: unknown } } }
+      signal: AbortSignal
+    }) {
+      const agent = exec.agent
       if (agent === undefined) throw new Error('summon_skill_expert requires a calling agent')
       if (agent.session.header.parentSession !== undefined) {
         throw new Error('skill experts cannot summon further skill experts')
@@ -82,20 +182,20 @@ export function registerSummonTools(ctx: Context): () => void {
       const task = String(args.task ?? '').trim()
       if (expertKey === '' || task === '') throw new Error('expert and task are required')
 
-      const roster = listExperts()
+      const roster = listExperts().filter(row => row.enabled)
       const match = roster.find(row => row.id === expertKey || row.name === expertKey)
       if (match === undefined) {
-        throw new Error(`unknown skill expert "${expertKey}"; call list_skill_experts first`)
+        throw new Error(`unknown or disabled skill expert "${expertKey}"; call list_skill_experts first`)
       }
       const detail = getExpert(match.id)
-      const subagents = ctx.get('subagents')
+      const subagents = ctx.get('subagents') as SubagentsService | undefined
       if (subagents === undefined) throw new Error('subagents service unavailable')
       if (typeof subagents.startActivation !== 'function') {
         throw new Error('subagents.startActivation unavailable')
       }
 
-      const prompt: ContentBlock[] = [{
-        type: 'text',
+      const prompt = [{
+        type: 'text' as const,
         text: [
           `You are the skill expert "${detail.name}".`,
           'Follow your persona and use your available skills as needed.',
@@ -105,45 +205,71 @@ export function registerSummonTools(ctx: Context): () => void {
         ].join('\n'),
       }]
 
+      // Agency pattern: delivery "caller", await result, return answer in the tool output.
       const started = await subagents.startActivation({
         provider: 'spawn',
         label: detail.name,
-        delivery: 'parent',
+        delivery: 'caller',
+        signal: exec.signal,
         request: {
           parent: agent,
           prompt,
           agentPreset: presetIdFor(detail.id),
-          signal: exec.signal,
         },
       })
 
-      return { kind: 'activation' as const, subagentId: started.childId }
+      const result = await awaitActivation(started, exec.signal)
+      const answer = textBlocks(result.output).trim()
+      if (result.stopReason !== 'completed') {
+        const detailText = answer.length > 0 ? ` Partial output:\n${answer}` : ''
+        throw new Error(`skill expert "${detail.name}" ended with ${result.stopReason}.${detailText}`)
+      }
+      if (answer === '') {
+        throw new Error(`skill expert "${detail.name}" returned no usable text`)
+      }
+      return { expert: detail.name, answer }
     },
-  })
+  }
 
-  const disposeList = ctx.tools.register(listTool)
-  const disposeSummon = ctx.tools.register(summonTool)
+  // ctx.tools typings come from the Host; avoid importing dsh-tools at runtime.
+  const tools = ctx.tools as {
+    register: (definition: unknown) => () => void
+  }
+  const disposeList = tools.register(listTool)
+  const disposeSummon = tools.register(summonTool)
 
   const disposePrompt = ctx.systemPrompt.section({
     name: 'skill-experts',
     order: 420,
-    text: () => {
-      const experts = listExperts()
+    text: (context?: { agent?: { session?: { header?: { parentSession?: unknown } } } }) => {
+      if (context?.agent?.session?.header?.parentSession !== undefined) return ''
+      const experts = listExperts().filter(row => row.enabled)
       if (experts.length === 0) {
         return [
           '## Skill experts',
-          'No skill experts are configured yet. The user can add them in the Skill experts sidebar.',
+          'No skill experts are enabled. The user can enable or add them in the Skill experts sidebar.',
         ].join('\n')
       }
-      const lines = experts.map(row => `- ${row.name} (id: ${row.id}, skills: ${row.skillCount})`).join('\n')
+      const lines = experts
+        .map(row => `- ${row.name} (id: ${row.id}, source: ${row.source}, skills: ${row.skillCount})`)
+        .join('\n')
       return [
         '## Skill experts',
-        'This Host provides domain skill experts (persona + isolated skills).',
-        'When the user asks for a listed expert or a task that clearly matches one, call `list_skill_experts` if needed, then `summon_skill_expert` immediately with a short brief.',
-        'Do **not** use the generic `subagent` or `subagent_fork` tools to impersonate these experts.',
-        'After summoning, wait for the completion notification and synthesize the expert result for the user.',
+        'This Host provides domain skill experts (each backed by an Agent Preset with persona + skills).',
+        'A session may already use one of these presets as its own agent; that is independent of @ summoning.',
         '',
-        'Current experts:',
+        'Composer / `@` selection inserts a native reference chip. On submit it expands to',
+        '`@DisplayName` plus a `[Skill expert chip id="…" name="…"]` mandatory-summon marker.',
+        'Whenever the user message contains such a chip, `@DisplayName` for an enabled expert,',
+        'or that marker: you MUST call `summon_skill_expert` once for **each** named expert',
+        'before any user-facing reply to that @ mention. Use the remaining user text (excluding chip markers) as `task`.',
+        'Even a short greeting or question is a valid task — still summon.',
+        'Do not answer the @ mention yourself first. Wait for each tool `answer`, then briefly synthesize.',
+        '',
+        'Call `list_skill_experts` only when the user did not name an expert but the task clearly matches one.',
+        'Do not use the generic `subagent` or `subagent_fork` tools in place of `summon_skill_expert` for these experts.',
+        '',
+        'Enabled experts:',
         lines,
       ].join('\n')
     },

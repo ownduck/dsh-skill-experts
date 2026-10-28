@@ -16,6 +16,11 @@ export function catalogPath(): string {
   return join(expertsRoot(), 'catalog.json')
 }
 
+/** Enablement preferences JSON path. */
+export function statePath(): string {
+  return join(expertsRoot(), 'state.json')
+}
+
 /** One expert directory. */
 export function expertDir(id: string): string {
   return join(expertsRoot(), id)

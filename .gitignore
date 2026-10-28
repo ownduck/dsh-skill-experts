@@ -1,10 +1,17 @@
 # Dependencies
 node_modules/
+pnpm-lock.yaml
 
 # Build intermediates (shipped lib/ is committed for link/github installs)
 tsconfig.build.json
 lib/tsconfig.*.tsbuildinfo
 *.tsbuildinfo
+lib/**/*.js.map
+
+# Local probes / scratch
+.tmp*
+.tmp-*.yml
+.tmp-*.log
 
 # Logs / caches
 *.log

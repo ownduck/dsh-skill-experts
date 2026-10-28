@@ -40,6 +40,13 @@ declare module '@deepseek-ai/dsh-api-remotes/client' {
                 ok: false;
                 error: unknown;
             }>;
+            setEnabled(id: string, enabled: boolean): Promise<{
+                ok: true;
+                value: import('../types.ts').ExpertDetail;
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
             getSkill(expertId: string, skillName: string): Promise<{
                 ok: true;
                 value: import('../types.ts').SkillDetail;
@@ -65,6 +72,36 @@ declare module '@deepseek-ai/dsh-api-remotes/client' {
                 ok: true;
                 value: {
                     imported: readonly string[];
+                };
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
+            exportExpert(id: string): Promise<{
+                ok: true;
+                value: {
+                    filename: string;
+                    zipBase64: string;
+                };
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
+            exportExperts(ids: readonly string[]): Promise<{
+                ok: true;
+                value: {
+                    filename: string;
+                    zipBase64: string;
+                };
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
+            importExpert(zipBase64: string): Promise<{
+                ok: true;
+                value: {
+                    count: number;
+                    ids: readonly string[];
                 };
             } | {
                 ok: false;

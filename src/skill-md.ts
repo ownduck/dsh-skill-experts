@@ -1,11 +1,10 @@
-/** Parse and serialize SKILL.md with optional note frontmatter. */
+/** Parse and serialize SKILL.md (`name` + `description` frontmatter, body as prompt). */
 
 import { parse as parseYaml } from 'yaml'
 
 export interface SkillFrontmatter {
   name: string
   description: string
-  note?: string
 }
 
 export interface ParsedSkillMd {
@@ -31,9 +30,8 @@ export function parseSkillMd(raw: string, path: string): ParsedSkillMd {
   const description = record.description
   if (typeof name !== 'string' || name.trim() === '') throw new Error(`${path}: name is required`)
   if (typeof description !== 'string' || description.trim() === '') throw new Error(`${path}: description is required`)
-  const note = typeof record.note === 'string' ? record.note : undefined
   return {
-    frontmatter: { name: name.trim(), description: description.trim(), ...note === undefined || note === '' ? {} : { note } },
+    frontmatter: { name: name.trim(), description: description.trim() },
     prompt: raw.slice(match[0].length).replace(/^\r?\n/u, ''),
     raw,
   }
@@ -43,10 +41,16 @@ export function parseSkillMd(raw: string, path: string): ParsedSkillMd {
  * Serialize skill fields to SKILL.md text.
  * @param fields - frontmatter + body.
  */
-export function serializeSkillMd(fields: { name: string; description: string; prompt: string; note?: string }): string {
-  const lines = ['---', `name: ${yamlScalar(fields.name)}`, `description: ${yamlScalar(fields.description)}`]
-  if (fields.note !== undefined && fields.note !== '') lines.push(`note: ${yamlScalar(fields.note)}`)
-  lines.push('---', '', fields.prompt.replace(/^\uFEFF/u, '').replace(/\s+$/u, ''), '')
+export function serializeSkillMd(fields: { name: string; description: string; prompt: string }): string {
+  const lines = [
+    '---',
+    `name: ${yamlScalar(fields.name)}`,
+    `description: ${yamlScalar(fields.description)}`,
+    '---',
+    '',
+    fields.prompt.replace(/^\uFEFF/u, '').replace(/\s+$/u, ''),
+    '',
+  ]
   return lines.join('\n')
 }
 

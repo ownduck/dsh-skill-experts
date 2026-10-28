@@ -1,7 +1,6 @@
 ---
 name: tech-writing
 description: Draft or rewrite technical docs, READMEs, and how-to guides.
-note: Seed skill for the tech-writer expert
 ---
 
 # Technical writing

@@ -1,7 +1,6 @@
 ---
 name: code-review
 description: Review a change or file for bugs, risks, and missing tests.
-note: Seed skill for the code-reviewer expert
 ---
 
 # Code review

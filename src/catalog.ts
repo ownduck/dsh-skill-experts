@@ -5,13 +5,39 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { SkillExpertsError } from './errors.ts'
 import {
   catalogPath, expertDir, expertMetaPath, expertSkillsDir, isKebabName, presetIdFor, skillDir, skillMdPath,
 } from './paths.ts'
 import { parseSkillMd, serializeSkillMd } from './skill-md.ts'
+import {
+  enableNewExpert, enabledSet, ensureState, forgetExpert, setExpertEnabled,
+} from './state.ts'
 import type {
-  CatalogFile, ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput, SkillSummary,
+  CatalogFile, ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSource, ExpertSummary, SkillDetail, SkillSaveInput,
+  SkillSummary,
 } from './types.ts'
+
+/** Seed folder names shipped with the package (legacy installs without `builtin`). */
+const LEGACY_BUILTIN_IDS = new Set(['code-reviewer', 'tech-writer'])
+
+function seedIds(seedRoot: string): string[] {
+  if (!existsSync(seedRoot)) return []
+  return readdirSync(seedRoot, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+    .sort()
+}
+
+function resolveBuiltin(id: string, rawBuiltin: unknown): boolean {
+  if (rawBuiltin === true) return true
+  if (rawBuiltin === false) return false
+  return LEGACY_BUILTIN_IDS.has(id)
+}
+
+function sourceOf(meta: ExpertMeta): ExpertSource {
+  return meta.builtin === true ? 'builtin' : 'custom'
+}
 
 function readCatalog(): CatalogFile {
   const path = catalogPath()
@@ -29,16 +55,29 @@ function writeCatalog(catalog: CatalogFile): void {
 
 function readMeta(id: string): ExpertMeta {
   const path = expertMetaPath(id)
-  if (!existsSync(path)) throw new Error(`expert "${id}" not found`)
-  const raw = JSON.parse(readFileSync(path, 'utf8')) as ExpertMeta
-  if (raw.id !== id) throw new Error(`expert meta id mismatch for "${id}"`)
-  return raw
+  if (!existsSync(path)) throw new SkillExpertsError('expert-not-found', `expert "${id}" not found`)
+  const raw = JSON.parse(readFileSync(path, 'utf8')) as Partial<ExpertMeta> & { id?: string }
+  if (raw.id !== id) throw new SkillExpertsError('expert-not-found', `expert meta id mismatch for "${id}"`)
+  const name = typeof raw.name === 'string' ? raw.name : ''
+  const description = typeof raw.description === 'string' ? raw.description : ''
+  const avatar = typeof raw.avatar === 'string' && raw.avatar.trim() !== '' ? raw.avatar : '🧠'
+  const persona = typeof raw.persona === 'string' ? raw.persona : ''
+  const builtin = resolveBuiltin(id, raw.builtin)
+  return { id, name, description, avatar, persona, builtin }
 }
 
 function writeMeta(meta: ExpertMeta): void {
   mkdirSync(expertDir(meta.id), { recursive: true })
   mkdirSync(expertSkillsDir(meta.id), { recursive: true })
-  writeFileSync(expertMetaPath(meta.id), `${JSON.stringify(meta, undefined, 2)}\n`, 'utf8')
+  const payload = {
+    id: meta.id,
+    name: meta.name,
+    description: meta.description,
+    avatar: meta.avatar,
+    persona: meta.persona,
+    builtin: meta.builtin === true,
+  }
+  writeFileSync(expertMetaPath(meta.id), `${JSON.stringify(payload, undefined, 2)}\n`, 'utf8')
 }
 
 function listSkillNames(expertId: string): string[] {
@@ -57,7 +96,6 @@ function readSkillSummary(expertId: string, skillName: string): SkillSummary {
   return {
     name: parsed.frontmatter.name,
     description: parsed.frontmatter.description,
-    note: parsed.frontmatter.note ?? '',
     absolutePath,
   }
 }
@@ -86,15 +124,18 @@ function listFilesRecursive(abs: string, rel: string): string[] {
   return out
 }
 
-function toDetail(meta: ExpertMeta): ExpertDetail {
+function toDetail(meta: ExpertMeta, enabled: boolean): ExpertDetail {
   const skills = listSkillNames(meta.id).map(name => readSkillSummary(meta.id, name))
   return {
     id: meta.id,
     name: meta.name,
+    description: meta.description,
     avatar: meta.avatar,
     persona: meta.persona,
     skillCount: skills.length,
     presetId: presetIdFor(meta.id),
+    source: sourceOf(meta),
+    enabled,
     skills,
     rootPath: expertDir(meta.id),
   }
@@ -111,41 +152,58 @@ function allocExpertId(name: string): string {
   return `${id}-${n}`
 }
 
-/** Ensure seed experts exist when catalog is missing. */
+/**
+ * Ensure seed experts exist and stamp builtin / enablement defaults.
+ * @param seedRoot - package `assets/seed` directory.
+ */
 export function ensureSeeded(seedRoot = fileURLToPath(new URL('../assets/seed/', import.meta.url))): void {
-  if (existsSync(catalogPath())) {
-    readCatalog()
-    return
+  const seeds = seedIds(seedRoot)
+  for (const id of seeds) LEGACY_BUILTIN_IDS.add(id)
+
+  if (!existsSync(catalogPath())) {
+    mkdirSync(expertDir('_tmp'), { recursive: true })
+    rmSync(expertDir('_tmp'), { recursive: true, force: true })
+    const experts: string[] = []
+    for (const id of seeds) {
+      cpSync(join(seedRoot, id), expertDir(id), { recursive: true })
+      const meta = readMeta(id)
+      writeMeta({ ...meta, builtin: true })
+      experts.push(id)
+    }
+    writeCatalog({ revision: 1, experts: experts.sort() })
+  } else {
+    // Migrate legacy metas that omit `builtin`.
+    for (const id of readCatalog().experts) {
+      try {
+        const meta = readMeta(id)
+        const path = expertMetaPath(id)
+        const raw = JSON.parse(readFileSync(path, 'utf8')) as { builtin?: unknown }
+        if (raw.builtin === undefined && meta.builtin === true) writeMeta(meta)
+      } catch {
+        // Skip unreadable experts; list/get will surface them later.
+      }
+    }
   }
-  mkdirSync(expertDir('_tmp'), { recursive: true })
-  rmSync(expertDir('_tmp'), { recursive: true, force: true })
-  const experts: string[] = []
-  if (!existsSync(seedRoot)) {
-    writeCatalog({ revision: 1, experts })
-    return
-  }
-  for (const entry of readdirSync(seedRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue
-    const from = join(seedRoot, entry.name)
-    const to = expertDir(entry.name)
-    cpSync(from, to, { recursive: true })
-    experts.push(entry.name)
-  }
-  writeCatalog({ revision: 1, experts: experts.sort() })
+  ensureState(readCatalog().experts)
 }
 
 /** List expert summaries in catalog order. */
 export function listExperts(): ExpertSummary[] {
   const catalog = readCatalog()
+  ensureState(catalog.experts)
+  const enabled = enabledSet()
   return catalog.experts.flatMap(id => {
     try {
-      const detail = toDetail(readMeta(id))
+      const detail = toDetail(readMeta(id), enabled.has(id))
       return [{
         id: detail.id,
         name: detail.name,
+        description: detail.description,
         avatar: detail.avatar,
         skillCount: detail.skillCount,
         presetId: detail.presetId,
+        source: detail.source,
+        enabled: detail.enabled,
       }]
     } catch {
       return []
@@ -155,41 +213,75 @@ export function listExperts(): ExpertSummary[] {
 
 /** Load one expert. */
 export function getExpert(id: string): ExpertDetail {
-  return toDetail(readMeta(id))
+  ensureState(readCatalog().experts)
+  return toDetail(readMeta(id), enabledSet().has(id))
+}
+
+/**
+ * Enable or disable one expert.
+ * @param id - expert id.
+ * @param enabled - desired state.
+ */
+export function setEnabled(id: string, enabled: boolean): ExpertDetail {
+  const catalog = readCatalog()
+  readMeta(id)
+  setExpertEnabled(id, enabled, catalog.experts)
+  return getExpert(id)
 }
 
 /** Create or update expert metadata. */
 export function saveExpert(input: ExpertSaveInput): ExpertDetail {
   const name = input.name.trim()
-  if (name === '') throw new Error('expert name is required')
+  if (name === '') throw new SkillExpertsError('name-required', 'expert name is required')
+  const description = input.description.trim()
   const avatar = input.avatar.trim() || '🧠'
   const persona = input.persona.trim()
-  if (persona === '') throw new Error('expert persona is required')
+  if (persona === '') throw new SkillExpertsError('persona-required', 'expert persona prompt is required')
   const catalog = readCatalog()
   let id = input.id?.trim()
   if (id === undefined || id === '') {
     id = allocExpertId(name)
-    writeMeta({ id, name, avatar, persona })
-    writeCatalog({ revision: catalog.revision + 1, experts: [...catalog.experts, id].sort() })
-    return toDetail(readMeta(id))
+    writeMeta({ id, name, description, avatar, persona, builtin: false })
+    // Append only: catalog order is creation order (do not alpha-sort).
+    const experts = [...catalog.experts, id]
+    writeCatalog({ revision: catalog.revision + 1, experts })
+    enableNewExpert(id, experts)
+    return getExpert(id)
   }
-  if (!catalog.experts.includes(id)) throw new Error(`expert "${id}" not found`)
-  writeMeta({ id, name, avatar, persona })
+  if (!catalog.experts.includes(id)) throw new SkillExpertsError('expert-not-found', `expert "${id}" not found`)
+  const previous = readMeta(id)
+  writeMeta({
+    id,
+    name,
+    description,
+    avatar,
+    persona,
+    builtin: previous.builtin === true,
+  })
   writeCatalog({ revision: catalog.revision + 1, experts: catalog.experts })
-  return toDetail(readMeta(id))
+  return getExpert(id)
 }
 
-/** Delete an expert and its files. */
+/** Delete a custom expert and its files. Built-in experts cannot be removed. */
 export function deleteExpert(id: string): void {
   const catalog = readCatalog()
-  if (!catalog.experts.includes(id)) throw new Error(`expert "${id}" not found`)
+  if (!catalog.experts.includes(id)) throw new SkillExpertsError('expert-not-found', `expert "${id}" not found`)
+  const meta = readMeta(id)
+  if (meta.builtin === true) {
+    throw new SkillExpertsError('builtin-cannot-delete', `built-in expert "${id}" cannot be deleted`)
+  }
   rmSync(expertDir(id), { recursive: true, force: true })
-  writeCatalog({ revision: catalog.revision + 1, experts: catalog.experts.filter(item => item !== id) })
+  const experts = catalog.experts.filter(item => item !== id)
+  writeCatalog({ revision: catalog.revision + 1, experts })
+  forgetExpert(id, experts)
 }
 
 /** Load skill editor payload. */
 export function getSkill(expertId: string, skillName: string): SkillDetail {
   readMeta(expertId)
+  if (!existsSync(skillMdPath(expertId, skillName))) {
+    throw new SkillExpertsError('skill-not-found', `skill "${skillName}" not found`)
+  }
   return readSkillDetail(expertId, skillName)
 }
 
@@ -198,14 +290,21 @@ export function saveSkill(expertId: string, input: SkillSaveInput): SkillDetail 
   readMeta(expertId)
   const name = input.name.trim()
   const description = input.description.trim()
-  if (!isKebabName(name)) throw new Error('skill name must be kebab-case')
-  if (description === '') throw new Error('skill description is required')
+  const prompt = input.prompt.trim()
+  if (name === '') throw new SkillExpertsError('skill-name-required', 'skill name is required')
+  if (!isKebabName(name)) throw new SkillExpertsError('skill-name-kebab', 'skill name must be kebab-case')
+  if (description === '') {
+    throw new SkillExpertsError('skill-description-required', 'skill description is required')
+  }
+  if (prompt === '') {
+    throw new SkillExpertsError('skill-prompt-required', 'skill prompt is required')
+  }
   const fromName = input.fromName?.trim()
   const target = skillDir(expertId, name)
   if (fromName !== undefined && fromName !== '' && fromName !== name) {
     const from = skillDir(expertId, fromName)
-    if (!existsSync(from)) throw new Error(`skill "${fromName}" not found`)
-    if (existsSync(target)) throw new Error(`skill "${name}" already exists`)
+    if (!existsSync(from)) throw new SkillExpertsError('skill-not-found', `skill "${fromName}" not found`)
+    if (existsSync(target)) throw new SkillExpertsError('skill-exists', `skill "${name}" already exists`)
     renameSync(from, target)
   } else {
     mkdirSync(target, { recursive: true })
@@ -215,8 +314,7 @@ export function saveSkill(expertId: string, input: SkillSaveInput): SkillDetail 
     serializeSkillMd({
       name,
       description,
-      prompt: input.prompt,
-      ...input.note === undefined || input.note.trim() === '' ? {} : { note: input.note.trim() },
+      prompt,
     }),
     'utf8',
   )
@@ -229,7 +327,7 @@ export function saveSkill(expertId: string, input: SkillSaveInput): SkillDetail 
 export function deleteSkill(expertId: string, skillName: string): void {
   readMeta(expertId)
   const path = skillDir(expertId, skillName)
-  if (!existsSync(path)) throw new Error(`skill "${skillName}" not found`)
+  if (!existsSync(path)) throw new SkillExpertsError('skill-not-found', `skill "${skillName}" not found`)
   rmSync(path, { recursive: true, force: true })
   const catalog = readCatalog()
   writeCatalog({ revision: catalog.revision + 1, experts: catalog.experts })

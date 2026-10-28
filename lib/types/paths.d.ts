@@ -3,6 +3,8 @@
 export declare function expertsRoot(): string;
 /** Catalog JSON path. */
 export declare function catalogPath(): string;
+/** Enablement preferences JSON path. */
+export declare function statePath(): string;
 /** One expert directory. */
 export declare function expertDir(id: string): string;
 /** Expert meta.json path. */

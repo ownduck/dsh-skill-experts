@@ -1,11 +1,16 @@
+/* Match Agency Experts list: centered page, toolbar, two-column cards. */
 .root {
+  --page-inset: clamp(24px, 4vw, 48px);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1080px;
   height: 100%;
   min-height: 0;
-  padding: 16px 20px;
-  gap: 12px;
-  box-sizing: border-box;
+  margin-inline: auto;
+  padding: 28px var(--page-inset) 48px;
+  gap: 16px;
 }
 
 .header {
@@ -18,57 +23,398 @@
 .title {
   margin: 0;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
-.row {
+.toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
-  border-radius: 8px;
-  background: transparent;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.manageBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.manageSelectAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: color-mix(in srgb, CanvasText 78%, transparent);
   cursor: pointer;
-  text-align: left;
-  width: 100%;
+  user-select: none;
 }
 
-.row:hover {
-  background: color-mix(in srgb, CanvasText 4%, transparent);
+.manageSelectAll input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
 }
 
-.avatar {
-  font-size: 22px;
-  line-height: 1;
-  width: 28px;
-  text-align: center;
+.manageExportBtn,
+.manageToggleBtn {
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  background: color-mix(in srgb, CanvasText 3.5%, Canvas);
+  color: CanvasText;
+  font: inherit;
+  font-size: 12px;
+  line-height: 26px;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.meta {
+.manageToggleBtn {
+  min-width: 6.5em;
+  margin-inline-start: auto;
+}
+
+.manageExportBtn:hover:not(:disabled),
+.manageToggleBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
+  border-color: color-mix(in srgb, CanvasText 18%, transparent);
+}
+
+.manageExportBtn:disabled,
+.manageToggleBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.manageExportBtn:focus-visible,
+.manageToggleBtn:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, CanvasText 28%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.cardSelect {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin: 12px 0 0;
+  cursor: pointer;
+}
+
+.filterGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.filter,
+.filterActive {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  height: 34px;
+  min-width: 108px;
+  max-width: 160px;
+  padding: 0 28px 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  background-color: color-mix(in srgb, CanvasText 3.5%, Canvas);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' stroke='%23666' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  color: color-mix(in srgb, CanvasText 78%, transparent);
+  font: inherit;
+  font-size: 13px;
+  line-height: 34px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.filter:hover,
+.filterActive:hover {
+  background-color: color-mix(in srgb, CanvasText 6%, Canvas);
+  border-color: color-mix(in srgb, CanvasText 18%, transparent);
+  color: CanvasText;
+}
+
+.filter:focus-visible,
+.filterActive:focus-visible,
+.search input:focus-visible,
+.addBtn:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, CanvasText 28%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.filterActive {
+  border-color: color-mix(in srgb, CanvasText 22%, transparent);
+  background-color: color-mix(in srgb, CanvasText 7%, Canvas);
+  color: CanvasText;
+  font-weight: 500;
+}
+
+.search {
+  position: relative;
   flex: 1;
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  display: inline-flex;
+  color: color-mix(in srgb, CanvasText 45%, transparent);
+  pointer-events: none;
+}
+
+.search input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 36px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  background: color-mix(in srgb, CanvasText 3.5%, Canvas);
+  color: CanvasText;
+  font: inherit;
+  font-size: 13px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.search input:hover {
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
+  border-color: color-mix(in srgb, CanvasText 18%, transparent);
+}
+
+.search input::placeholder {
+  color: color-mix(in srgb, CanvasText 40%, transparent);
+}
+
+.addBtn {
+  box-sizing: border-box;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  background: color-mix(in srgb, CanvasText 3.5%, Canvas);
+  color: CanvasText;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.addBtn:hover {
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
+  border-color: color-mix(in srgb, CanvasText 18%, transparent);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  align-content: start;
+  align-items: stretch;
+  padding-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  border-radius: 12px;
+  background: Canvas;
+  overflow: hidden;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 10px;
+  padding: 16px 16px 12px;
+  min-height: 0;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cardIdentity {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   min-width: 0;
 }
 
-.name {
-  font-weight: 600;
+.cardAvatar {
+  box-sizing: border-box;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  background: color-mix(in srgb, CanvasText 6%, transparent);
+  border: 1px solid color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.cardIdentityText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardName {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sub {
-  font-size: 12px;
-  opacity: 0.7;
+.cardTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
 }
 
-.list {
+.cardTag {
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, CanvasText 7%, transparent);
+  color: color-mix(in srgb, CanvasText 70%, transparent);
+  font-size: 12px;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardSwitch {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  overflow: auto;
-  min-height: 0;
-  flex: 1;
+  align-items: flex-end;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.cardSwitchLabel {
+  font-size: 12px;
+  line-height: 1.2;
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+}
+
+.cardDescription {
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  font-size: 13px;
+  line-height: 1.5;
+  color: color-mix(in srgb, CanvasText 62%, transparent);
+}
+
+.cardMeta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.cardExport {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: color-mix(in srgb, CanvasText 48%, transparent);
+  cursor: pointer;
+}
+
+.cardExport svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.card:hover .cardExport:not(:disabled),
+.cardExport:focus-visible:not(:disabled) {
+  color: color-mix(in srgb, CanvasText 72%, transparent);
+}
+
+.cardExport:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cardFooter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 0 0 auto;
+  margin-top: auto;
+  border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.cardAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+  cursor: pointer;
+}
+
+.cardAction + .cardAction {
+  border-left: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.cardAction:hover {
+  color: CanvasText;
+  background: color-mix(in srgb, CanvasText 4%, transparent);
 }
 
 .actions {
@@ -104,6 +450,12 @@
   resize: vertical;
 }
 
+/* MD editor owns height via its drag bar; do not inherit .field textarea resize. */
+.field .markdownField textarea {
+  min-height: 0;
+  resize: none;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -116,6 +468,56 @@
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
+}
+
+.skillsTableWrap {
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in srgb, CanvasText 2.5%, Canvas);
+}
+
+.skillsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.skillsTable th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, CanvasText 72%, transparent);
+  background: color-mix(in srgb, CanvasText 5%, Canvas);
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+}
+
+.skillsTable td {
+  padding: 14px 16px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.skillsTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.skillIndexCell {
+  width: 48px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+  font-weight: 600;
+}
+
+.skillNameCell {
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
 }
 
 .muted {
@@ -132,10 +534,205 @@
   margin: 0;
   padding-left: 18px;
   font-size: 12px;
+  color: color-mix(in srgb, CanvasText 78%, transparent);
 }
 
 .path {
   font-family: ui-monospace, monospace;
   font-size: 12px;
   word-break: break-all;
+}
+
+.primaryBtn,
+.ghostBtn,
+.dangerBtn {
+  font: inherit;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
+
+.primaryBtn {
+  background: CanvasText;
+  color: Canvas;
+  border-color: CanvasText;
+}
+
+.dangerBtn {
+  color: tomato;
+  border-color: color-mix(in srgb, tomato 40%, transparent);
+}
+
+.ghostBtn:disabled,
+.primaryBtn:disabled,
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal {
+  width: min(720px, calc(100vw - 48px));
+  max-height: min(860px, calc(100vh - 48px));
+}
+
+.skillsModal {
+  width: min(840px, calc(100vw - 48px));
+  max-height: min(860px, calc(100vh - 48px));
+}
+
+.modalContent {
+  max-height: min(640px, calc(100vh - 200px));
+  overflow: auto;
+}
+
+.skillRow {
+  cursor: pointer;
+}
+
+.skillRow:hover td {
+  background: color-mix(in srgb, CanvasText 5%, transparent);
+}
+
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.modalFooterRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.importSkillsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 10px 0 0;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
+
+.importSkillsMain {
+  font: inherit;
+  padding: 8px 1px 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.importSkillsBtn .helpBtn {
+  margin-left: -2px;
+}
+
+.importSkillsMain:disabled,
+.helpBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.helpBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+  cursor: help;
+}
+
+.helpBtn:hover,
+.helpBtn:focus-visible {
+  color: CanvasText;
+  background: color-mix(in srgb, CanvasText 6%, transparent);
+}
+
+.fieldLabelRow {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.required {
+  opacity: 0.55;
+  font-weight: 400;
+}
+
+.avatarGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.avatarChoice,
+.avatarChoiceSelected {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  background: Canvas;
+  cursor: pointer;
+}
+
+.avatarChoiceSelected {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 1px #16a34a;
+}
+
+.avatarGlyph {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.avatarCheck {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.shortTextarea {
+  min-height: 36px !important;
+  height: 36px;
+  resize: vertical;
+}
+
+.markdownField {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  /* Grow with MDEditor drag-bar height (inline height on .w-md-editor). */
+  display: block;
+  box-sizing: border-box;
 }

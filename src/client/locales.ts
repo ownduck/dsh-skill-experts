@@ -1,83 +1,207 @@
-/** Locale strings for the skill-experts sidebar. */
+/** `skill-experts` namespace dictionaries for the sidebar panel. */
 
+/** Dictionary namespace owned by this plugin. */
 export const NS = 'skill-experts' as const
 
-export type ExpertsKey =
-  | 'panel'
-  | 'title'
-  | 'loading'
-  | 'empty'
-  | 'new'
-  | 'edit'
-  | 'delete'
-  | 'save'
-  | 'cancel'
-  | 'name'
-  | 'avatar'
-  | 'persona'
-  | 'skills'
-  | 'skillName'
-  | 'skillDescription'
-  | 'skillNote'
-  | 'skillPrompt'
-  | 'skillPath'
-  | 'skillFiles'
-  | 'addSkill'
-  | 'importZip'
-  | 'noSkills'
-  | 'confirmDelete'
-  | 'error'
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export const zh = {
+  'panel.title': '技能专家',
+  'panel.loading': '加载中…',
+  'panel.empty': '暂无专家',
+  'panel.emptySearch': '没有匹配的专家',
+  'panel.searchPlaceholder': '搜索专家、职责或领域',
 
-export const zh: Record<ExpertsKey, string> = {
-  panel: '技能专家',
-  title: '技能专家',
-  loading: '加载中…',
-  empty: '暂无专家',
-  new: '新建',
-  edit: '编辑',
-  delete: '删除',
-  save: '保存',
-  cancel: '取消',
-  name: '名称',
-  avatar: '头像',
-  persona: '人格',
-  skills: '技能',
-  skillName: '名称',
-  skillDescription: '描述',
-  skillNote: '简介',
-  skillPrompt: '正文',
-  skillPath: '路径',
-  skillFiles: '其他文件',
-  addSkill: '新增技能',
-  importZip: '导入 zip',
-  noSkills: '暂无技能',
-  confirmDelete: '确认删除？',
-  error: '操作失败',
-}
+  'action.new': '新建',
+  'action.edit': '编辑',
+  'action.delete': '删除',
+  'action.save': '保存',
+  'action.cancel': '取消',
+  'action.close': '关闭',
 
-export const en: Record<ExpertsKey, string> = {
-  panel: 'Skill experts',
-  title: 'Skill experts',
-  loading: 'Loading…',
-  empty: 'No experts yet',
-  new: 'New',
-  edit: 'Edit',
-  delete: 'Delete',
-  save: 'Save',
-  cancel: 'Cancel',
-  name: 'Name',
-  avatar: 'Avatar',
-  persona: 'Persona',
-  skills: 'Skills',
-  skillName: 'Name',
-  skillDescription: 'Description',
-  skillNote: 'Note',
-  skillPrompt: 'Prompt',
-  skillPath: 'Path',
-  skillFiles: 'Other files',
-  addSkill: 'Add skill',
-  importZip: 'Import zip',
-  noSkills: 'No skills',
-  confirmDelete: 'Delete this item?',
-  error: 'Request failed',
-}
+  'filter.sourceAll': '全部来源',
+  'filter.sourceBuiltin': '内置',
+  'filter.sourceCustom': '自定义',
+  'filter.statusAll': '全部状态',
+  'filter.statusEnabled': '已启用',
+  'filter.statusDisabled': '已停用',
+
+  'source.builtin': '内置',
+  'source.custom': '自定义',
+  'status.enabled': '已启用',
+  'status.disabled': '已停用',
+  'status.toggleEnable': '启用专家',
+
+  'expert.manageSkills': '管理技能',
+  'expert.edit': '编辑专家',
+  'expert.modalNewTitle': '新建专家',
+  'expert.modalEditTitle': '编辑专家',
+  'expert.name': '专家名称',
+  'expert.description': '专家简介',
+  'expert.persona': '专家人格提示词',
+  'expert.avatar': '头像',
+  'expert.avatarSelected': '已选',
+  'expert.cannotDeleteBuiltin': '内置专家不可删除',
+  'expert.confirmDelete': '确认删除专家？',
+  'expert.validationRequired': '请填写专家名称与人格提示词',
+  'expert.export': '导出专家',
+  'expert.import': '导入专家包',
+  'expert.importHelp': '选择含 meta.json 与 skills/ 的 zip（单专家或每文件夹一个专家），导入为自定义专家',
+
+  'manage.enter': '管理',
+  'manage.exit': '取消管理',
+  'manage.selectAll': '全选',
+  'manage.clearSelection': '取消全选',
+  'manage.exportSelected': '批量导出',
+
+  'composer.button': '技能专家',
+  'composer.atSection': '技能专家',
+  'composer.search': '搜索技能专家名称或简介',
+  'composer.empty': '暂无已启用专家，输入关键词查找或到侧栏启用',
+  'composer.removed': '@已移除专家（请重新选择）',
+  'composer.close': '关闭',
+
+  'field.requiredMark': '（必填）',
+
+  'skill.count': '{count} 个技能',
+  'skill.index': '#',
+  'skill.name': '名称',
+  'skill.namePlaceholder': '如 my-skill',
+  'skill.description': '描述',
+  'skill.prompt': '正文',
+  'skill.path': '路径',
+  'skill.add': '新增技能',
+  'skill.edit': '编辑技能',
+  'skill.none': '暂无技能',
+  'skill.confirmDelete': '确认删除技能？',
+  'skill.validationRequired': '请填写技能名称、描述与正文',
+  'skill.validationNameKebab': '技能名称须为 kebab-case，如 my-skill',
+  'skill.importZip': '导入技能',
+  'skill.importZipHelp': '选择包含技能的 zip 包。单个技能：根目录放 SKILL.md；多个技能：每个文件夹内各有一份 SKILL.md。技能 name 须为 kebab-case。',
+  'skill.importZipHelpLabel': '导入说明',
+  'skill.files.scripts': '脚本',
+  'skill.files.references': '参考资料',
+  'skill.files.assets': '资源文件',
+  'skill.files.other': '其他文件',
+
+  'error.generic': '操作失败',
+  'error.notFound': '未找到该专家或技能',
+  'error.invalid': '输入无效',
+  'error.zip': '导入 zip 失败',
+  'error.expert-not-found': '未找到该专家',
+  'error.name-required': '请填写专家名称',
+  'error.persona-required': '请填写专家人格提示词',
+  'error.builtin-cannot-delete': '内置专家不可删除',
+  'error.skill-name-required': '请填写技能名称',
+  'error.skill-name-kebab': '技能名称须为 kebab-case，如 my-skill',
+  'error.skill-description-required': '请填写技能描述',
+  'error.skill-prompt-required': '请填写技能正文',
+  'error.skill-not-found': '未找到该技能',
+  'error.skill-exists': '同名技能已存在',
+  'error.zip-empty': 'zip 包为空',
+  'error.zip-invalid-layout': 'zip 布局无效：请使用根目录 SKILL.md，或每个文件夹内各有一份 SKILL.md',
+  'error.zip-missing-skill-md': '缺少 SKILL.md',
+  'error.zip-missing-meta': '缺少 meta.json',
+} satisfies Record<string, string>
+
+/** The skill-experts namespace key union. */
+export type ExpertsKey = keyof typeof zh
+
+/** English dictionary, checked complete against the zh key set. */
+export const en = {
+  'panel.title': 'Skill experts',
+  'panel.loading': 'Loading…',
+  'panel.empty': 'No experts yet',
+  'panel.emptySearch': 'No matching experts',
+  'panel.searchPlaceholder': 'Search experts, roles, or domains',
+
+  'action.new': 'New',
+  'action.edit': 'Edit',
+  'action.delete': 'Delete',
+  'action.save': 'Save',
+  'action.cancel': 'Cancel',
+  'action.close': 'Close',
+
+  'filter.sourceAll': 'All sources',
+  'filter.sourceBuiltin': 'Built-in',
+  'filter.sourceCustom': 'Custom',
+  'filter.statusAll': 'All statuses',
+  'filter.statusEnabled': 'Enabled',
+  'filter.statusDisabled': 'Disabled',
+
+  'source.builtin': 'Built-in',
+  'source.custom': 'Custom',
+  'status.enabled': 'Enabled',
+  'status.disabled': 'Disabled',
+  'status.toggleEnable': 'Enable expert',
+
+  'expert.manageSkills': 'Manage skills',
+  'expert.edit': 'Edit expert',
+  'expert.modalNewTitle': 'New expert',
+  'expert.modalEditTitle': 'Edit expert',
+  'expert.name': 'Expert name',
+  'expert.description': 'Expert summary',
+  'expert.persona': 'Expert persona prompt',
+  'expert.avatar': 'Avatar',
+  'expert.avatarSelected': 'Selected',
+  'expert.cannotDeleteBuiltin': 'Built-in experts cannot be deleted',
+  'expert.confirmDelete': 'Delete this expert?',
+  'expert.validationRequired': 'Name and persona prompt are required',
+  'expert.export': 'Export expert',
+  'expert.import': 'Import expert package',
+  'expert.importHelp': 'Choose a zip with meta.json and skills/ (one expert, or one folder per expert); imports as custom experts',
+
+  'manage.enter': 'Manage',
+  'manage.exit': 'Exit manage',
+  'manage.selectAll': 'Select all',
+  'manage.clearSelection': 'Clear selection',
+  'manage.exportSelected': 'Export selected',
+
+  'composer.button': 'Skill experts',
+  'composer.atSection': 'Skill experts',
+  'composer.search': 'Search skill experts by name or description',
+  'composer.empty': 'No enabled experts. Try another keyword, or enable some in the sidebar.',
+  'composer.removed': '@Removed expert (please reselect)',
+  'composer.close': 'Close',
+
+  'field.requiredMark': '(Required)',
+
+  'skill.count': '{count} skills',
+  'skill.index': '#',
+  'skill.name': 'Name',
+  'skill.namePlaceholder': 'e.g. my-skill',
+  'skill.description': 'Description',
+  'skill.prompt': 'Prompt',
+  'skill.path': 'Path',
+  'skill.add': 'Add skill',
+  'skill.edit': 'Edit skill',
+  'skill.none': 'No skills',
+  'skill.confirmDelete': 'Delete this skill?',
+  'skill.validationRequired': 'Name, description, and prompt are required',
+  'skill.validationNameKebab': 'Skill name must be kebab-case, e.g. my-skill',
+  'skill.importZip': 'Import skills',
+  'skill.importZipHelp': 'Choose a zip of skills. One skill: put SKILL.md at the zip root. Multiple skills: each folder needs its own SKILL.md. Skill names must be kebab-case.',
+  'skill.importZipHelpLabel': 'Import help',
+  'skill.files.scripts': 'Scripts',
+  'skill.files.references': 'References',
+  'skill.files.assets': 'Assets',
+  'skill.files.other': 'Other files',
+
+  'error.generic': 'Request failed',
+  'error.notFound': 'Expert or skill not found',
+  'error.invalid': 'Invalid input',
+  'error.zip': 'Zip import failed',
+  'error.expert-not-found': 'Expert not found',
+  'error.name-required': 'Expert name is required',
+  'error.persona-required': 'Expert persona prompt is required',
+  'error.builtin-cannot-delete': 'Built-in experts cannot be deleted',
+  'error.skill-name-required': 'Skill name is required',
+  'error.skill-name-kebab': 'Skill name must be kebab-case, e.g. my-skill',
+  'error.skill-description-required': 'Skill description is required',
+  'error.skill-prompt-required': 'Skill prompt is required',
+  'error.skill-not-found': 'Skill not found',
+  'error.skill-exists': 'A skill with this name already exists',
+  'error.zip-empty': 'Zip is empty',
+  'error.zip-invalid-layout': 'Invalid zip layout: use a root SKILL.md, or folders each with SKILL.md',
+  'error.zip-missing-skill-md': 'Missing SKILL.md',
+  'error.zip-missing-meta': 'Missing meta.json',
+} satisfies Record<ExpertsKey, string>

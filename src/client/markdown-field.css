@@ -1,0 +1,89 @@
+/* Overrides for @uiw/react-md-editor inside skill-experts modals. */
+
+.SkillExperts_markdownField {
+  transition: min-height 0s;
+}
+
+.SkillExperts_markdownField .w-md-editor {
+  --color-fg-default: CanvasText;
+  --color-canvas-default: Canvas;
+  --color-border-default: color-mix(in srgb, CanvasText 16%, transparent);
+  --color-neutral-muted: color-mix(in srgb, CanvasText 8%, transparent);
+  --color-accent-fg: CanvasText;
+  --md-editor-background-color: Canvas;
+  --md-editor-box-shadow-color: color-mix(in srgb, CanvasText 16%, transparent);
+  width: 100%;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Single height grip at the outer bottom-right (preview corner in split mode). */
+.SkillExperts_markdownField .w-md-editor-bar {
+  z-index: 5;
+  right: 2px;
+  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: ns-resize;
+}
+
+.SkillExperts_markdownField .w-md-editor-toolbar {
+  background: color-mix(in srgb, CanvasText 4%, Canvas);
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+}
+
+/* Hide help even if a stale toolbar still includes it. */
+.SkillExperts_markdownField .w-md-editor-toolbar button[aria-label="Open help"],
+.SkillExperts_markdownField .w-md-editor-toolbar button[title="Open help"] {
+  display: none !important;
+}
+
+.SkillExperts_markdownField .w-md-editor-content,
+.SkillExperts_markdownField .w-md-editor-text-pre > code,
+.SkillExperts_markdownField .w-md-editor-text-input,
+.SkillExperts_markdownField .w-md-editor-preview {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/*
+ * Default editor keeps the textarea fill transparent and paints glyphs in <pre>.
+ * Host theme tokens often leave that mirror unreadable; show the textarea itself.
+ */
+.SkillExperts_markdownField .w-md-editor-text-pre {
+  visibility: hidden !important;
+}
+
+.SkillExperts_markdownField .w-md-editor-text-input {
+  color: CanvasText !important;
+  -webkit-text-fill-color: CanvasText !important;
+  caret-color: CanvasText !important;
+  /* One shared height via .w-md-editor-bar — never per-pane textarea resize. */
+  resize: none !important;
+}
+
+.SkillExperts_markdownField .w-md-editor-text-input::placeholder {
+  color: color-mix(in srgb, CanvasText 40%, transparent) !important;
+  -webkit-text-fill-color: color-mix(in srgb, CanvasText 40%, transparent) !important;
+  opacity: 1;
+}
+
+.SkillExperts_markdownField .w-md-editor-preview {
+  color: CanvasText;
+}
+
+/*
+ * Fullscreen covers the viewport under Desktop's title-bar controls.
+ * Push the toolbar down so exit/preview icons stay clickable.
+ */
+.w-md-editor.w-md-editor-fullscreen {
+  padding-top: 40px;
+  box-sizing: border-box;
+}
+
+.w-md-editor.w-md-editor-fullscreen .w-md-editor-toolbar {
+  position: relative;
+  z-index: 1;
+}

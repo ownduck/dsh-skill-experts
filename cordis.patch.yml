@@ -1,3 +1,9 @@
+# Merged into the target profile by `dsh plugin add`.
+# Remote is a separate top-level row so api-gateway discovers skillExperts from
+# the root service table without waiting on the main row's tools inject
+# (same layout as @michengai/dsh-agency-agents).
 - insert:
+    - id: skill-experts-remote
+      name: '@woosau/dsh-skill-experts/remote'
     - id: skill-experts
       name: '@woosau/dsh-skill-experts'

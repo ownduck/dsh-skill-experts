@@ -1,4 +1,4 @@
-/** Main panel: expert list, editor, skill table / editor, zip import. */
+/** Main panel: expert list with edit / skills / skill-editor modals. */
 import { type ReactNode } from 'react';
 import type { ExpertDetail, ExpertSummary, SkillDetail } from '../types.ts';
 import type { ExpertsKey } from './locales.ts';
@@ -9,22 +9,34 @@ export interface ExpertsPanelInjected {
     readonly saveExpert: (input: {
         id?: string;
         name: string;
+        description: string;
         avatar: string;
         persona: string;
     }) => Promise<ExpertDetail>;
     readonly deleteExpert: (id: string) => Promise<void>;
+    readonly setEnabled: (id: string, enabled: boolean) => Promise<ExpertDetail>;
     readonly getSkill: (expertId: string, skillName: string) => Promise<SkillDetail>;
     readonly saveSkill: (expertId: string, input: {
         name: string;
         description: string;
         prompt: string;
-        note?: string;
         fromName?: string;
     }) => Promise<SkillDetail>;
     readonly deleteSkill: (expertId: string, skillName: string) => Promise<void>;
     readonly importZip: (expertId: string, zipBase64: string) => Promise<{
         imported: readonly string[];
     }>;
+    readonly exportExpert: (id: string) => Promise<{
+        filename: string;
+        zipBase64: string;
+    }>;
+    readonly exportExperts: (ids: readonly string[]) => Promise<{
+        filename: string;
+        zipBase64: string;
+    }>;
+    readonly importExpert: (zipBase64: string) => Promise<{
+        count: number;
+        ids: readonly string[];
+    }>;
 }
-/** Skill experts management panel. */
-export declare function ExpertsPanel({ t, list, get, saveExpert, deleteExpert, getSkill, saveSkill, deleteSkill, importZip }: ExpertsPanelInjected): ReactNode;
+export declare function ExpertsPanel({ t, list, get, saveExpert, deleteExpert, setEnabled, getSkill, saveSkill, deleteSkill, importZip, exportExpert, exportExperts, importExpert, }: ExpertsPanelInjected): ReactNode;
