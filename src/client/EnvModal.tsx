@@ -30,6 +30,8 @@ export interface EnvModalProps {
   readonly getEnv: (id: string) => Promise<readonly ExpertEnvVar[]>
   readonly customEnvStatus: () => Promise<{ available: boolean }>
   readonly saveExpertEnv: (id: string, entries: readonly ExpertEnvVar[]) => Promise<void>
+  /** Open sidebar Plugins when provided. */
+  readonly openPlugins?: () => void
   readonly busy: boolean
   readonly setBusy: (value: boolean) => void
   readonly onClose: () => void
@@ -252,7 +254,7 @@ export function EnvModal(props: EnvModalProps): ReactNode {
 
   const save = async (): Promise<void> => {
     if (missingPlugin) {
-      setError(t('error.custom-env-missing'))
+      setError(t('env.pluginMissing'))
       return
     }
     // Build the persist payload from current drafts (row Confirm is local-only).
@@ -301,12 +303,13 @@ export function EnvModal(props: EnvModalProps): ReactNode {
   const notice = error !== ''
     ? error
     : missingPlugin
-      ? t('error.custom-env-missing')
+      ? t('env.pluginMissing')
       : undefined
 
   const newDraft = drafts[NEW_KEY] ?? emptyCell()
   const newDirty = newDraft.name.trim() !== '' || newDraft.value !== ''
   const builtinEmpty = namesLocked && !loading && keys.length === 0
+  const showPluginsCta = missingPlugin && props.openPlugins !== undefined && error === ''
 
   return (
     <Modal
@@ -335,7 +338,14 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     >
       <div className={css.content}>
         {notice !== undefined ? (
-          <p className={css.notice} data-tone="error" role="status">{notice}</p>
+          <div className={css.noticeRow} role="status">
+            <p className={css.notice} data-tone="error">{notice}</p>
+            {showPluginsCta ? (
+              <button type="button" className={css.noticeCta} onClick={props.openPlugins}>
+                {t('env.openPlugins')}
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         <div className={css.header}>

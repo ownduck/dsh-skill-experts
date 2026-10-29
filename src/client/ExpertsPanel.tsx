@@ -153,6 +153,10 @@ export interface ExpertsPanelInjected {
   readonly importExpert: (zipBase64: string) => Promise<{ count: number; ids: readonly string[] }>
   readonly customEnvStatus: () => Promise<{ available: boolean }>
   readonly saveExpertEnv: (id: string, entries: readonly ExpertEnvVar[]) => Promise<ExpertDetail>
+  /** True when sidebar Plugins navigation is available. */
+  readonly canOpenPlugins: () => boolean
+  /** Open the sidebar Plugins list (Add plugin lives there). */
+  readonly openPlugins: () => void
 }
 
 type SourceFilter = 'all' | ExpertSource
@@ -191,7 +195,7 @@ function downloadBase64Zip(filename: string, zipBase64: string): void {
 
 export function ExpertsPanel({
   t, list, get, saveExpert, deleteExpert, setEnabled, getSkill, saveSkill, deleteSkill, importZip,
-  exportExpert, exportExperts, importExpert, customEnvStatus, saveExpertEnv,
+  exportExpert, exportExperts, importExpert, customEnvStatus, saveExpertEnv, canOpenPlugins, openPlugins,
 }: ExpertsPanelInjected): ReactNode {
   const [dialog, setDialog] = useState<ExpertDialog>({ kind: 'closed' })
   const [skillsDialog, setSkillsDialog] = useState<SkillsDialog>({ kind: 'closed' })
@@ -207,7 +211,17 @@ export function ExpertsPanel({
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [manageMode, setManageMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [customEnvAvailable, setCustomEnvAvailable] = useState<boolean | null>(null)
   const importExpertInputRef = useRef<HTMLInputElement>(null)
+
+  const refreshCustomEnvStatus = useCallback(async () => {
+    try {
+      const status = await customEnvStatus()
+      setCustomEnvAvailable(status.available)
+    } catch {
+      setCustomEnvAvailable(false)
+    }
+  }, [customEnvStatus])
 
   const reload = useCallback(async () => {
     setError('')
@@ -217,7 +231,8 @@ export function ExpertsPanel({
       setError(formatRemoteError(err, t))
       setRows([])
     }
-  }, [list, t])
+    await refreshCustomEnvStatus()
+  }, [list, refreshCustomEnvStatus, t])
 
   useEffect(() => { void reload() }, [reload])
 
@@ -484,6 +499,16 @@ export function ExpertsPanel({
         </button>
       </div>
       {error !== '' && <div className={styles.error}>{error}</div>}
+      {customEnvAvailable === false ? (
+        <div className={styles.dependencyNotice} role="status">
+          <p className={styles.dependencyNoticeText}>{t('env.pluginMissing')}</p>
+          {canOpenPlugins() ? (
+            <button type="button" className={styles.dependencyNoticeCta} onClick={openPlugins}>
+              {t('env.openPlugins')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {filtered === null ? (
         <div className={styles.muted}>{t('panel.loading')}</div>
       ) : filtered.length === 0 ? (
@@ -618,9 +643,13 @@ export function ExpertsPanel({
         saveExpertEnv={async (id, entries) => {
           await saveExpertEnv(id, entries)
         }}
+        openPlugins={canOpenPlugins() ? openPlugins : undefined}
         busy={busy}
         setBusy={setBusy}
-        onClose={() => setEnvDialog({ kind: 'closed' })}
+        onClose={() => {
+          setEnvDialog({ kind: 'closed' })
+          void refreshCustomEnvStatus()
+        }}
       />
       <SkillsModal
         t={t}

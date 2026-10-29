@@ -36,6 +36,8 @@ export declare const zh: {
     'env.valuePlaceholder': string;
     'env.validationName': string;
     'env.builtinEmpty': string;
+    'env.pluginMissing': string;
+    'env.openPlugins': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;
@@ -148,6 +150,8 @@ export declare const en: {
     'env.valuePlaceholder': string;
     'env.validationName': string;
     'env.builtinEmpty': string;
+    'env.pluginMissing': string;
+    'env.openPlugins': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;

@@ -15,6 +15,8 @@ export interface EnvModalProps {
         available: boolean;
     }>;
     readonly saveExpertEnv: (id: string, entries: readonly ExpertEnvVar[]) => Promise<void>;
+    /** Open sidebar Plugins when provided. */
+    readonly openPlugins?: () => void;
     readonly busy: boolean;
     readonly setBusy: (value: boolean) => void;
     readonly onClose: () => void;

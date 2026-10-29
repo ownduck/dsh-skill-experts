@@ -11,15 +11,40 @@
   overflow: auto;
 }
 
+.noticeRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .notice {
   margin: 0;
   font-size: 13px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
+  flex: 1;
+  min-width: 0;
 }
 
 .notice[data-tone='error'] {
   color: var(--dsw-alias-label-danger, #c62828);
+}
+
+.noticeCta {
+  flex-shrink: 0;
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  white-space: nowrap;
+}
+
+.noticeCta:hover {
+  background: color-mix(in srgb, CanvasText 6%, transparent);
 }
 
 .header,

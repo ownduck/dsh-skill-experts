@@ -42,5 +42,9 @@ export interface ExpertsPanelInjected {
         available: boolean;
     }>;
     readonly saveExpertEnv: (id: string, entries: readonly ExpertEnvVar[]) => Promise<ExpertDetail>;
+    /** True when sidebar Plugins navigation is available. */
+    readonly canOpenPlugins: () => boolean;
+    /** Open the sidebar Plugins list (Add plugin lives there). */
+    readonly openPlugins: () => void;
 }
-export declare function ExpertsPanel({ t, list, get, saveExpert, deleteExpert, setEnabled, getSkill, saveSkill, deleteSkill, importZip, exportExpert, exportExperts, importExpert, customEnvStatus, saveExpertEnv, }: ExpertsPanelInjected): ReactNode;
+export declare function ExpertsPanel({ t, list, get, saveExpert, deleteExpert, setEnabled, getSkill, saveSkill, deleteSkill, importZip, exportExpert, exportExperts, importExpert, customEnvStatus, saveExpertEnv, canOpenPlugins, openPlugins, }: ExpertsPanelInjected): ReactNode;

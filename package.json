@@ -1,7 +1,7 @@
 {
   "name": "@woosau/dsh-skill-experts",
   "description": "Manage skill experts in the sidebar and summon them from the composer or @ menu",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

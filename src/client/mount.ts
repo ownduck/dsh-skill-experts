@@ -36,6 +36,11 @@ function registerMainPanel(ctx: Context): void {
   }
   const injectPanel = (): ExpertsPanelInjected => {
     const remote = ctx.remote.skillExperts
+    const readPluginNavigation = (): { openList: () => void } | undefined => {
+      const navigation = ctx.get('pluginNavigation') as { openList?: unknown } | undefined
+      if (navigation === undefined || typeof navigation.openList !== 'function') return undefined
+      return { openList: navigation.openList as () => void }
+    }
     return {
       t: key => t(key),
       list: async () => call(await remote.list()),
@@ -52,6 +57,8 @@ function registerMainPanel(ctx: Context): void {
       importExpert: async zipBase64 => call(await remote.importExpert(zipBase64)),
       customEnvStatus: async () => call(await remote.customEnvStatus()),
       saveExpertEnv: async (id, entries) => call(await remote.saveExpertEnv(id, entries)),
+      canOpenPlugins: () => readPluginNavigation() !== undefined,
+      openPlugins: () => { readPluginNavigation()?.openList() },
     }
   }
   ctx.slots.inject('main', () => ctx.slots.register({
