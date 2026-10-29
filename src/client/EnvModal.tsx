@@ -302,13 +302,10 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     ? error
     : missingPlugin
       ? t('error.custom-env-missing')
-      : namesLocked
-        ? t('env.builtinLocked')
-        : undefined
+      : undefined
 
   const newDraft = drafts[NEW_KEY] ?? emptyCell()
   const newDirty = newDraft.name.trim() !== '' || newDraft.value !== ''
-  const noticeTone = error !== '' || missingPlugin ? 'error' : undefined
 
   return (
     <Modal
@@ -335,7 +332,7 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     >
       <div className={css.content}>
         {notice !== undefined ? (
-          <p className={css.notice} data-tone={noticeTone} role="status">{notice}</p>
+          <p className={css.notice} data-tone="error" role="status">{notice}</p>
         ) : null}
 
         <div className={css.header}>
@@ -346,8 +343,6 @@ export function EnvModal(props: EnvModalProps): ReactNode {
 
         {loading ? (
           <p className={css.empty}>{t('panel.loading')}</p>
-        ) : namesLocked && keys.length === 0 ? (
-          <p className={css.empty}>{t('env.builtinEmpty')}</p>
         ) : (
           <div className={css.list}>
             {keys.map(key => {
