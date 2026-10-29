@@ -67,6 +67,10 @@ function Slot({ empty, children }: { empty: boolean; children: ReactNode }): Rea
   return <div className={css.slot} data-empty={empty ? 'true' : 'false'}>{empty ? null : children}</div>
 }
 
+function formatCount(template: string, count: number): string {
+  return template.replace('{count}', String(count))
+}
+
 /** Expert environment variables modal. */
 export function EnvModal(props: EnvModalProps): ReactNode {
   const { t, open, expertId } = props
@@ -197,36 +201,53 @@ export function EnvModal(props: EnvModalProps): ReactNode {
 
   const newDraft = drafts[NEW_ID] ?? { name: '', value: '' }
   const newDirty = newDraft.name.trim() !== '' || newDraft.value !== ''
+  const booting = busyTarget === 'boot'
+  const title = props.expertLabel === '' ? t('env.title') : `${props.expertLabel} · ${t('env.title')}`
 
   return (
     <>
       <Modal
         open={open}
         onClose={props.onClose}
-        title={props.expertLabel === '' ? t('env.title') : `${props.expertLabel} · ${t('env.title')}`}
+        title={title}
         closeLabel={t('action.close')}
+        className={css.modal}
         footer={(
-          <button type="button" onClick={props.onClose} disabled={globalBusy}>
-            {t('action.close')}
-          </button>
+          <div className={css.footer}>
+            <button type="button" className={css.ghostBtn} onClick={props.onClose} disabled={globalBusy}>
+              {t('action.close')}
+            </button>
+          </div>
         )}
       >
-        <div className={css.body}>
+        <div className={css.content}>
+          <div className={css.summary}>
+            <p className={css.count}>{formatCount(t('env.count'), committed.length)}</p>
+            <p className={css.hint}>{t('env.hint')}</p>
+          </div>
+
           {notice !== undefined ? (
-            <p className={css.notice} data-tone="error" role="status">{notice}</p>
+            <p className={css.notice} role="status">{notice}</p>
           ) : null}
 
           <div className={css.list}>
-            <div className={css.header}>
-              <p className={css.headerLabel}>{t('env.name')}</p>
-              <p className={css.headerLabel}>{t('env.value')}</p>
-              <div aria-hidden="true" />
-            </div>
+            {committed.length > 0 ? (
+              <div className={css.header}>
+                <p className={css.headerLabel}>{t('env.name')}</p>
+                <p className={css.headerLabel}>{t('env.value')}</p>
+                <div aria-hidden="true" />
+              </div>
+            ) : null}
 
-            {busyTarget === 'boot' ? (
-              <p className={css.empty}>{t('panel.loading')}</p>
-            ) : committed.length === 0 && !newDirty ? (
-              <p className={css.empty}>{t('env.empty')}</p>
+            {booting ? (
+              <div className={css.empty}>
+                <p className={css.emptyTitle}>{t('panel.loading')}</p>
+              </div>
+            ) : committed.length === 0 ? (
+              <div className={css.empty}>
+                <p className={css.emptyTitle}>{t('env.empty')}</p>
+                <p className={css.emptyHint}>{t('env.emptyHint')}</p>
+              </div>
             ) : null}
 
             {rowIds.map((id, index) => {
@@ -236,8 +257,9 @@ export function EnvModal(props: EnvModalProps): ReactNode {
               const dirty = draft.name !== entry.name || draft.value !== entry.value
               const loading = busyTarget === `row:${id}`
               return (
-                <div key={id} className={css.row}>
+                <div key={id} className={css.row} data-dirty={dirty ? 'true' : 'false'}>
                   <Input
+                    className={css.nameInput}
                     value={draft.name}
                     disabled={globalBusy || missingPlugin}
                     onChange={event => setDraft(id, { name: event.target.value })}
@@ -289,49 +311,43 @@ export function EnvModal(props: EnvModalProps): ReactNode {
                 </div>
               )
             })}
+          </div>
 
-            <div className={css.row}>
+          <div className={css.composer}>
+            <p className={css.composerTitle}>{t('env.addSection')}</p>
+            <div className={css.composerRow}>
               <Input
+                className={css.nameInput}
                 value={newDraft.name}
-                disabled={globalBusy || missingPlugin}
+                disabled={globalBusy || missingPlugin || booting}
                 onChange={event => setDraft(NEW_ID, { name: event.target.value })}
                 placeholder={t('env.namePlaceholder')}
                 aria-label={t('env.name')}
               />
               <Input
                 value={newDraft.value}
-                disabled={globalBusy || missingPlugin}
+                disabled={globalBusy || missingPlugin || booting}
                 onChange={event => setDraft(NEW_ID, { value: event.target.value })}
                 placeholder={t('env.valuePlaceholder')}
                 aria-label={t('env.value')}
               />
-              <div className={css.actions} role="group" aria-label={t('env.actions')}>
-                <Slot empty={!newDirty}>
-                  {newDirty ? (
-                    <IconAction
-                      label={busyTarget === 'new' ? t('panel.loading') : t('action.confirm')}
-                      primary
-                      disabled={globalBusy || missingPlugin}
-                      onClick={() => confirmRow(NEW_ID, undefined)}
-                    >
-                      {busyTarget === 'new'
-                        ? <IconLoadingOutlineRegular className={css.spinner} size={14} />
-                        : <IconCheckOutlineRegular size={14} />}
-                    </IconAction>
-                  ) : null}
-                </Slot>
-                <Slot empty={!newDirty}>
-                  {newDirty ? (
-                    <IconAction
-                      label={t('action.cancel')}
-                      disabled={globalBusy}
-                      onClick={() => cancelRow(NEW_ID, { name: '', value: '' })}
-                    >
-                      <IconCloseOutlineRegular size={14} />
-                    </IconAction>
-                  ) : null}
-                </Slot>
-                <Slot empty />
+              <div className={css.composerActions}>
+                <button
+                  type="button"
+                  className={`${css.textBtn} ${css.textBtnPrimary}`}
+                  disabled={globalBusy || missingPlugin || booting || !newDirty}
+                  onClick={() => confirmRow(NEW_ID, undefined)}
+                >
+                  {busyTarget === 'new' ? t('panel.loading') : t('action.confirm')}
+                </button>
+                <button
+                  type="button"
+                  className={css.textBtn}
+                  disabled={globalBusy || !newDirty}
+                  onClick={() => cancelRow(NEW_ID, { name: '', value: '' })}
+                >
+                  {t('action.cancel')}
+                </button>
               </div>
             </div>
           </div>
@@ -344,23 +360,30 @@ export function EnvModal(props: EnvModalProps): ReactNode {
         title={t('env.confirmDelete')}
         closeLabel={t('action.cancel')}
         footer={(
-          <>
-            <button type="button" onClick={() => setPendingDelete(null)} disabled={globalBusy}>
-              {t('action.cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (pendingDelete !== null) removeRow(pendingDelete)
-              }}
-              disabled={globalBusy || missingPlugin}
-            >
-              {t('action.delete')}
-            </button>
-          </>
+          <div className={css.footer}>
+            <div className={css.composerActions}>
+              <button type="button" className={css.textBtn} onClick={() => setPendingDelete(null)} disabled={globalBusy}>
+                {t('action.cancel')}
+              </button>
+              <button
+                type="button"
+                className={`${css.textBtn} ${css.textBtnPrimary}`}
+                onClick={() => {
+                  if (pendingDelete !== null) removeRow(pendingDelete)
+                }}
+                disabled={globalBusy || missingPlugin}
+              >
+                {t('action.delete')}
+              </button>
+            </div>
+          </div>
         )}
       >
-        <p className={css.notice}>{pendingDelete}</p>
+        <p className={css.deleteBody}>
+          {t('env.confirmDeleteBody')}
+          {' '}
+          <span className={css.deleteName}>{pendingDelete}</span>
+        </p>
       </Modal>
     </>
   )
