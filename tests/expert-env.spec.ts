@@ -14,13 +14,17 @@ function mockCtx(store: Record<string, string> = {}): Context {
     get(name: string) {
       if (name !== 'customEnv') return undefined
       return {
-        async setVar(key: string, value: string) {
-          store[key] = value
+        async setVars(entries: readonly { name: string; value: string }[]) {
+          for (const entry of entries) store[entry.name] = entry.value
         },
-        async removeVar(key: string) {
-          const had = Object.hasOwn(store, key)
-          delete store[key]
-          return had
+        async removeVars(names: readonly string[]) {
+          let removed = 0
+          for (const key of names) {
+            if (!Object.hasOwn(store, key)) continue
+            delete store[key]
+            removed += 1
+          }
+          return removed
         },
       }
     },
@@ -74,7 +78,7 @@ describe('expert env vars', () => {
     ])
   })
 
-  it('removeVar on deleted names and rejects missing custom-env', async () => {
+  it('removeVars on deleted names and rejects missing custom-env', async () => {
     fixture = withTempDshHome()
     const store: Record<string, string> = {}
     const ctx = mockCtx(store)

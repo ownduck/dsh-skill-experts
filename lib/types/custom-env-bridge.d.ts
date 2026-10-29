@@ -1,10 +1,10 @@
 /** Optional Host bridge to `@woosau/dsh-custom-env` (`ctx.customEnv`). */
 import type { Context } from '@deepseek-ai/cordis';
 import type { ExpertEnvVar } from './types.ts';
-/** Duck-typed subset of the custom-env Host service. */
+/** Duck-typed subset of the custom-env Host service (batch APIs). */
 export interface CustomEnvApi {
-    setVar(name: string, value: string): Promise<void>;
-    removeVar(name: string): Promise<boolean>;
+    setVars(entries: readonly ExpertEnvVar[]): Promise<void>;
+    removeVars(names: readonly string[]): Promise<number>;
 }
 /**
  * Look up custom-env when installed (O(1) Cordis store get; no I/O).
@@ -22,7 +22,7 @@ export declare function requireCustomEnv(ctx: Context): CustomEnvApi;
  */
 export declare function customEnvAvailable(ctx: Context): boolean;
 /**
- * Apply env entries to custom-env: set each, remove names no longer present.
+ * Apply env entries to custom-env: batch-remove dropped names, then batch-set next.
  * @param api - custom-env service.
  * @param previous - prior declared names.
  * @param next - next declared entries.

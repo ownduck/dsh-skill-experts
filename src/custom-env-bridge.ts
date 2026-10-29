@@ -4,16 +4,16 @@ import type { Context } from '@deepseek-ai/cordis'
 import { SkillExpertsError } from './errors.ts'
 import type { ExpertEnvVar } from './types.ts'
 
-/** Duck-typed subset of the custom-env Host service. */
+/** Duck-typed subset of the custom-env Host service (batch APIs). */
 export interface CustomEnvApi {
-  setVar(name: string, value: string): Promise<void>
-  removeVar(name: string): Promise<boolean>
+  setVars(entries: readonly ExpertEnvVar[]): Promise<void>
+  removeVars(names: readonly string[]): Promise<number>
 }
 
 function isCustomEnvApi(value: unknown): value is CustomEnvApi {
   if (value === null || typeof value !== 'object') return false
-  const candidate = value as { setVar?: unknown; removeVar?: unknown }
-  return typeof candidate.setVar === 'function' && typeof candidate.removeVar === 'function'
+  const candidate = value as { setVars?: unknown; removeVars?: unknown }
+  return typeof candidate.setVars === 'function' && typeof candidate.removeVars === 'function'
 }
 
 /**
@@ -49,7 +49,7 @@ export function customEnvAvailable(ctx: Context): boolean {
 }
 
 /**
- * Apply env entries to custom-env: set each, remove names no longer present.
+ * Apply env entries to custom-env: batch-remove dropped names, then batch-set next.
  * @param api - custom-env service.
  * @param previous - prior declared names.
  * @param next - next declared entries.
@@ -60,10 +60,7 @@ export async function syncEnvToCustomEnv(
   next: readonly ExpertEnvVar[],
 ): Promise<void> {
   const nextNames = new Set(next.map(entry => entry.name))
-  for (const entry of previous) {
-    if (!nextNames.has(entry.name)) await api.removeVar(entry.name)
-  }
-  for (const entry of next) {
-    await api.setVar(entry.name, entry.value)
-  }
+  const removed = previous.map(entry => entry.name).filter(name => !nextNames.has(name))
+  if (removed.length > 0) await api.removeVars(removed)
+  if (next.length > 0) await api.setVars(next)
 }
