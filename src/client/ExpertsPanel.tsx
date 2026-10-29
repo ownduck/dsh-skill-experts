@@ -46,23 +46,12 @@ function IconEdit(): ReactNode {
 function IconEnv(): ReactNode {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect
-        x="3.5"
-        y="4.5"
-        width="17"
-        height="15"
-        rx="2.2"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path
-        d="M7.2 9.2c0-1.1.9-1.9 2.1-1.9 1.1 0 1.9.6 2.1 1.5M11.4 12.4c-.2 1.1-1.1 1.8-2.3 1.8-1.2 0-2.1-.9-2.1-2"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path d="M9.3 8.8v7.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M13.6 14.8H18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3.5 7.5h5.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M10.5 6.3h2.4M10.5 8.7h2.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M14.8 7.5H20.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3.5 16.5h5.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M10.5 15.3h2.4M10.5 17.7h2.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M14.8 16.5H20.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   )
 }
