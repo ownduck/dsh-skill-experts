@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, it } from 'node:test'
 import { getExpert, replaceExpertEnv, saveExpert } from '../src/catalog.ts'
@@ -95,6 +95,47 @@ describe('expert env vars', () => {
     assert.throws(
       () => requireCustomEnv({ get: () => undefined } as unknown as Context),
       (error: unknown) => error instanceof SkillExpertsError && error.reason === 'custom-env-missing',
+    )
+  })
+
+  it('allows builtin value changes but rejects add/remove/rename', async () => {
+    fixture = withTempDshHome()
+    const store: Record<string, string> = {}
+    const ctx = mockCtx(store)
+    const created = saveExpert({
+      name: 'Builtin Env',
+      description: '',
+      avatar: '🧪',
+      persona: 'Persona.',
+    })
+    writeFileSync(expertMetaPath(created.id), `${JSON.stringify({
+      id: created.id,
+      name: 'Builtin Env',
+      description: '',
+      avatar: '🧪',
+      persona: 'Persona.',
+      builtin: true,
+      envVars: [{ name: 'FOO', value: 'one' }],
+    }, undefined, 2)}\n`, 'utf8')
+
+    await replaceExpertEnv(ctx, created.id, [{ name: 'FOO', value: 'two' }])
+    assert.equal(store.FOO, 'two')
+    assert.deepEqual(getExpert(created.id).envVars, [{ name: 'FOO', value: 'two' }])
+
+    await assert.rejects(
+      () => replaceExpertEnv(ctx, created.id, [{ name: 'BAR', value: 'x' }]),
+      (error: unknown) => error instanceof SkillExpertsError && error.reason === 'builtin-cannot-mutate-env',
+    )
+    await assert.rejects(
+      () => replaceExpertEnv(ctx, created.id, [
+        { name: 'FOO', value: 'two' },
+        { name: 'BAR', value: 'x' },
+      ]),
+      (error: unknown) => error instanceof SkillExpertsError && error.reason === 'builtin-cannot-mutate-env',
+    )
+    await assert.rejects(
+      () => replaceExpertEnv(ctx, created.id, []),
+      (error: unknown) => error instanceof SkillExpertsError && error.reason === 'builtin-cannot-mutate-env',
     )
   })
 

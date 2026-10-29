@@ -15,6 +15,10 @@
   margin: 0;
   font-size: 13px;
   line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.notice[data-tone='error'] {
   color: var(--dsw-alias-label-danger, #c62828);
 }
 

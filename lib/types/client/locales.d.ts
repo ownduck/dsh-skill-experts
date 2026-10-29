@@ -35,6 +35,8 @@ export declare const zh: {
     'env.namePlaceholder': string;
     'env.valuePlaceholder': string;
     'env.validationName': string;
+    'env.builtinLocked': string;
+    'env.builtinEmpty': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;
@@ -95,6 +97,7 @@ export declare const zh: {
     'error.builtin-cannot-delete-skill': string;
     'error.builtin-cannot-add-skill': string;
     'error.builtin-cannot-import-skill': string;
+    'error.builtin-cannot-mutate-env': string;
     'error.skill-name-required': string;
     'error.skill-name-kebab': string;
     'error.skill-description-required': string;
@@ -145,6 +148,8 @@ export declare const en: {
     'env.namePlaceholder': string;
     'env.valuePlaceholder': string;
     'env.validationName': string;
+    'env.builtinLocked': string;
+    'env.builtinEmpty': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;
@@ -205,6 +210,7 @@ export declare const en: {
     'error.builtin-cannot-delete-skill': string;
     'error.builtin-cannot-add-skill': string;
     'error.builtin-cannot-import-skill': string;
+    'error.builtin-cannot-mutate-env': string;
     'error.skill-name-required': string;
     'error.skill-name-kebab': string;
     'error.skill-description-required': string;

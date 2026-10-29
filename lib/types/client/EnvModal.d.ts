@@ -1,6 +1,6 @@
-/** Expert env-var editor: draft Confirm/Cancel per row, syncs via custom-env. */
+/** Expert env-var editor: row Confirm/Cancel for local checks; Save persists. */
 import { type ReactNode } from 'react';
-import type { ExpertEnvVar } from '../types.ts';
+import type { ExpertEnvVar, ExpertSource } from '../types.ts';
 import type { ExpertsKey } from './locales.ts';
 type Translate = (key: ExpertsKey) => string;
 export interface EnvModalProps {
@@ -8,6 +8,8 @@ export interface EnvModalProps {
     readonly open: boolean;
     readonly expertId: string;
     readonly expertLabel: string;
+    /** Built-in experts may only change values. */
+    readonly source: ExpertSource;
     readonly getEnv: (id: string) => Promise<readonly ExpertEnvVar[]>;
     readonly customEnvStatus: () => Promise<{
         available: boolean;

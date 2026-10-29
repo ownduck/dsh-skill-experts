@@ -9,6 +9,7 @@ export type SkillExpertsReason =
   | 'builtin-cannot-delete-skill'
   | 'builtin-cannot-add-skill'
   | 'builtin-cannot-import-skill'
+  | 'builtin-cannot-mutate-env'
   | 'skill-name-required'
   | 'skill-name-kebab'
   | 'skill-description-required'

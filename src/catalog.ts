@@ -422,11 +422,31 @@ export async function replaceExpertEnv(
   }
   const previous = readMeta(id)
   const normalized = normalizeEnvVars(next)
+  const previousVars = previous.envVars ?? []
+  let toWrite = normalized
+  if (previous.builtin === true) {
+    // Built-ins: names are fixed; only values may change.
+    const nextByName = new Map(normalized.map(entry => [entry.name, entry.value]))
+    if (
+      nextByName.size !== previousVars.length
+      || previousVars.some(entry => !nextByName.has(entry.name))
+      || normalized.some(entry => !previousVars.some(prev => prev.name === entry.name))
+    ) {
+      throw new SkillExpertsError(
+        'builtin-cannot-mutate-env',
+        `built-in expert "${id}" cannot add, remove, or rename env vars`,
+      )
+    }
+    toWrite = previousVars.map(entry => ({
+      name: entry.name,
+      value: nextByName.get(entry.name) ?? entry.value,
+    }))
+  }
   const api = requireCustomEnv(ctx)
-  await syncEnvToCustomEnv(api, previous.envVars ?? [], normalized)
+  await syncEnvToCustomEnv(api, previousVars, toWrite)
   writeMeta({
     ...previous,
-    envVars: normalized,
+    envVars: toWrite,
   })
   writeCatalog({ revision: catalog.revision + 1, experts: catalog.experts })
   return getExpert(id)

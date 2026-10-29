@@ -180,7 +180,7 @@ type SkillsDialog =
 
 type EnvDialog =
   | { kind: 'closed' }
-  | { kind: 'open'; id: string }
+  | { kind: 'open'; id: string; source: ExpertSource }
 
 type SkillDialog =
   | { kind: 'closed' }
@@ -584,7 +584,7 @@ export function ExpertsPanel({
                   className={styles.cardAction}
                   aria-label={t('expert.editEnv')}
                   title={t('expert.editEnv')}
-                  onClick={() => setEnvDialog({ kind: 'open', id: row.id })}
+                  onClick={() => setEnvDialog({ kind: 'open', id: row.id, source: row.source })}
                 >
                   <IconEnv />
                 </button>
@@ -623,6 +623,7 @@ export function ExpertsPanel({
           const row = rows.find(item => item.id === envDialog.id)
           return row === undefined ? '' : `${row.avatar} ${row.name}`
         })()}
+        source={envDialog.kind === 'open' ? envDialog.source : 'custom'}
         getEnv={async id => (await get(id)).envVars}
         customEnvStatus={customEnvStatus}
         saveExpertEnv={async (id, entries) => {

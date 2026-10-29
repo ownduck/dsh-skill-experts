@@ -9,7 +9,7 @@ import {
   Modal,
   Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ExpertEnvVar } from '../types.ts'
+import type { ExpertEnvVar, ExpertSource } from '../types.ts'
 import css from './EnvModal.module.css'
 import { formatRemoteError } from './format-remote-error.ts'
 import type { ExpertsKey } from './locales.ts'
@@ -25,6 +25,8 @@ export interface EnvModalProps {
   readonly open: boolean
   readonly expertId: string
   readonly expertLabel: string
+  /** Built-in experts may only change values. */
+  readonly source: ExpertSource
   readonly getEnv: (id: string) => Promise<readonly ExpertEnvVar[]>
   readonly customEnvStatus: () => Promise<{ available: boolean }>
   readonly saveExpertEnv: (id: string, entries: readonly ExpertEnvVar[]) => Promise<void>
@@ -96,7 +98,8 @@ function Slot({ empty, children }: { empty: boolean; children: ReactNode }): Rea
 
 /** Expert environment variables modal. */
 export function EnvModal(props: EnvModalProps): ReactNode {
-  const { t, open, expertId } = props
+  const { t, open, expertId, source } = props
+  const namesLocked = source === 'builtin'
   const [available, setAvailable] = useState<boolean | null>(null)
   const [keys, setKeys] = useState<readonly string[]>([])
   const [accepted, setAccepted] = useState<Record<string, Cell>>({})
@@ -174,6 +177,18 @@ export function EnvModal(props: EnvModalProps): ReactNode {
 
   const confirmRow = (key: string): void => {
     const draft = drafts[key] ?? emptyCell()
+    if (namesLocked) {
+      if (key === NEW_KEY) {
+        setError(t('error.builtin-cannot-mutate-env'))
+        return
+      }
+      const lockedName = accepted[key]?.name ?? ''
+      const cell = { name: lockedName, value: draft.value }
+      setError('')
+      setAccepted(previous => ({ ...previous, [key]: cell }))
+      setDrafts(previous => ({ ...previous, [key]: { ...cell } }))
+      return
+    }
     const name = draft.name.trim()
     if (name === '') {
       setError(t('env.validationName'))
@@ -217,6 +232,10 @@ export function EnvModal(props: EnvModalProps): ReactNode {
   }
 
   const removeRow = (key: string): void => {
+    if (namesLocked) {
+      setError(t('error.builtin-cannot-mutate-env'))
+      return
+    }
     setError('')
     setKeys(previous => previous.filter(item => item !== key))
     setAccepted(previous => {
@@ -241,16 +260,25 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     const nextKeys: string[] = []
     for (const key of keys) {
       const draft = drafts[key] ?? accepted[key] ?? emptyCell()
+      if (namesLocked) {
+        const lockedName = accepted[key]?.name.trim() ?? ''
+        if (lockedName === '') continue
+        nextKeys.push(key)
+        nextAccepted[key] = { name: lockedName, value: draft.value }
+        continue
+      }
       const name = draft.name.trim()
       if (name === '') continue
       nextKeys.push(key)
       nextAccepted[key] = { name, value: draft.value }
     }
-    const newDraft = drafts[NEW_KEY] ?? emptyCell()
-    if (newDraft.name.trim() !== '') {
-      const created = allocKey()
-      nextKeys.push(created)
-      nextAccepted[created] = { name: newDraft.name.trim(), value: newDraft.value }
+    if (!namesLocked) {
+      const newDraft = drafts[NEW_KEY] ?? emptyCell()
+      if (newDraft.name.trim() !== '') {
+        const created = allocKey()
+        nextKeys.push(created)
+        nextAccepted[created] = { name: newDraft.name.trim(), value: newDraft.value }
+      }
     }
     const collected = collectEntries(nextKeys, nextAccepted)
     if ('error' in collected) {
@@ -274,10 +302,13 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     ? error
     : missingPlugin
       ? t('error.custom-env-missing')
-      : undefined
+      : namesLocked
+        ? t('env.builtinLocked')
+        : undefined
 
   const newDraft = drafts[NEW_KEY] ?? emptyCell()
   const newDirty = newDraft.name.trim() !== '' || newDraft.value !== ''
+  const noticeTone = error !== '' || missingPlugin ? 'error' : undefined
 
   return (
     <Modal
@@ -304,7 +335,7 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     >
       <div className={css.content}>
         {notice !== undefined ? (
-          <p className={css.notice} role="status">{notice}</p>
+          <p className={css.notice} data-tone={noticeTone} role="status">{notice}</p>
         ) : null}
 
         <div className={css.header}>
@@ -315,17 +346,21 @@ export function EnvModal(props: EnvModalProps): ReactNode {
 
         {loading ? (
           <p className={css.empty}>{t('panel.loading')}</p>
+        ) : namesLocked && keys.length === 0 ? (
+          <p className={css.empty}>{t('env.builtinEmpty')}</p>
         ) : (
           <div className={css.list}>
             {keys.map(key => {
               const base = accepted[key] ?? emptyCell()
               const draft = drafts[key] ?? base
-              const dirty = draft.name !== base.name || draft.value !== base.value
+              const dirty = namesLocked
+                ? draft.value !== base.value
+                : draft.name !== base.name || draft.value !== base.value
               return (
                 <div key={key} className={css.row}>
                   <Input
-                    value={draft.name}
-                    disabled={disabled}
+                    value={namesLocked ? base.name : draft.name}
+                    disabled={disabled || namesLocked}
                     onChange={event => setDraft(key, { name: event.target.value })}
                     aria-label={t('env.name')}
                   />
@@ -359,63 +394,67 @@ export function EnvModal(props: EnvModalProps): ReactNode {
                         </IconAction>
                       ) : null}
                     </Slot>
-                    <Slot empty={false}>
-                      <IconAction
-                        label={t('action.delete')}
-                        danger
-                        disabled={disabled}
-                        onClick={() => removeRow(key)}
-                      >
-                        <IconTrashOutlineRegular size={14} />
-                      </IconAction>
+                    <Slot empty={namesLocked}>
+                      {namesLocked ? null : (
+                        <IconAction
+                          label={t('action.delete')}
+                          danger
+                          disabled={disabled}
+                          onClick={() => removeRow(key)}
+                        >
+                          <IconTrashOutlineRegular size={14} />
+                        </IconAction>
+                      )}
                     </Slot>
                   </div>
                 </div>
               )
             })}
 
-            <div className={css.row}>
-              <Input
-                value={newDraft.name}
-                disabled={disabled}
-                onChange={event => setDraft(NEW_KEY, { name: event.target.value })}
-                placeholder={t('env.namePlaceholder')}
-                aria-label={t('env.name')}
-              />
-              <Input
-                value={newDraft.value}
-                disabled={disabled}
-                onChange={event => setDraft(NEW_KEY, { value: event.target.value })}
-                placeholder={t('env.valuePlaceholder')}
-                aria-label={t('env.value')}
-              />
-              <div className={css.actions} role="group" aria-label={t('env.actions')}>
-                <Slot empty={!newDirty}>
-                  {newDirty ? (
-                    <IconAction
-                      label={t('action.confirm')}
-                      primary
-                      disabled={disabled}
-                      onClick={() => confirmRow(NEW_KEY)}
-                    >
-                      <IconCheckOutlineRegular size={14} />
-                    </IconAction>
-                  ) : null}
-                </Slot>
-                <Slot empty={!newDirty}>
-                  {newDirty ? (
-                    <IconAction
-                      label={t('action.cancel')}
-                      disabled={disabled}
-                      onClick={() => cancelRow(NEW_KEY)}
-                    >
-                      <IconCloseOutlineRegular size={14} />
-                    </IconAction>
-                  ) : null}
-                </Slot>
-                <Slot empty />
+            {!namesLocked ? (
+              <div className={css.row}>
+                <Input
+                  value={newDraft.name}
+                  disabled={disabled}
+                  onChange={event => setDraft(NEW_KEY, { name: event.target.value })}
+                  placeholder={t('env.namePlaceholder')}
+                  aria-label={t('env.name')}
+                />
+                <Input
+                  value={newDraft.value}
+                  disabled={disabled}
+                  onChange={event => setDraft(NEW_KEY, { value: event.target.value })}
+                  placeholder={t('env.valuePlaceholder')}
+                  aria-label={t('env.value')}
+                />
+                <div className={css.actions} role="group" aria-label={t('env.actions')}>
+                  <Slot empty={!newDirty}>
+                    {newDirty ? (
+                      <IconAction
+                        label={t('action.confirm')}
+                        primary
+                        disabled={disabled}
+                        onClick={() => confirmRow(NEW_KEY)}
+                      >
+                        <IconCheckOutlineRegular size={14} />
+                      </IconAction>
+                    ) : null}
+                  </Slot>
+                  <Slot empty={!newDirty}>
+                    {newDirty ? (
+                      <IconAction
+                        label={t('action.cancel')}
+                        disabled={disabled}
+                        onClick={() => cancelRow(NEW_KEY)}
+                      >
+                        <IconCloseOutlineRegular size={14} />
+                      </IconAction>
+                    ) : null}
+                  </Slot>
+                  <Slot empty />
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         )}
       </div>
