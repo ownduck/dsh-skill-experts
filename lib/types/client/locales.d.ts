@@ -27,6 +27,16 @@ export declare const zh: {
     'status.toggleEnable': string;
     'expert.manageSkills': string;
     'expert.edit': string;
+    'expert.editEnv': string;
+    'env.title': string;
+    'env.name': string;
+    'env.value': string;
+    'env.actions': string;
+    'env.empty': string;
+    'env.namePlaceholder': string;
+    'env.valuePlaceholder': string;
+    'env.confirmDelete': string;
+    'env.validationName': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;
@@ -97,6 +107,9 @@ export declare const zh: {
     'error.zip-invalid-layout': string;
     'error.zip-missing-skill-md': string;
     'error.zip-missing-meta': string;
+    'error.custom-env-missing': string;
+    'error.env-name-invalid': string;
+    'error.env-name-duplicate': string;
 };
 /** The skill-experts namespace key union. */
 export type ExpertsKey = keyof typeof zh;
@@ -126,6 +139,16 @@ export declare const en: {
     'status.toggleEnable': string;
     'expert.manageSkills': string;
     'expert.edit': string;
+    'expert.editEnv': string;
+    'env.title': string;
+    'env.name': string;
+    'env.value': string;
+    'env.actions': string;
+    'env.empty': string;
+    'env.namePlaceholder': string;
+    'env.valuePlaceholder': string;
+    'env.confirmDelete': string;
+    'env.validationName': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;
@@ -196,4 +219,7 @@ export declare const en: {
     'error.zip-invalid-layout': string;
     'error.zip-missing-skill-md': string;
     'error.zip-missing-meta': string;
+    'error.custom-env-missing': string;
+    'error.env-name-invalid': string;
+    'error.env-name-duplicate': string;
 };

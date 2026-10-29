@@ -5,6 +5,8 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { Context } from '@deepseek-ai/cordis'
+import { requireCustomEnv, syncEnvToCustomEnv } from './custom-env-bridge.ts'
 import { SkillExpertsError } from './errors.ts'
 import {
   catalogPath, expertDir, expertMetaPath, expertSkillsDir, expertsRoot, isKebabName, presetIdFor, skillDir, skillMdPath,
@@ -14,9 +16,62 @@ import {
   enableNewExpert, enabledSet, ensureState, forgetExpert, setExpertEnabled,
 } from './state.ts'
 import type {
-  CatalogFile, ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSource, ExpertSummary, SkillDetail, SkillSaveInput,
-  SkillSummary,
+  CatalogFile, ExpertDetail, ExpertEnvVar, ExpertMeta, ExpertSaveInput, ExpertSource, ExpertSummary, SkillDetail,
+  SkillSaveInput, SkillSummary,
 } from './types.ts'
+
+/** Writable env var names (aligned with custom-env ordinary names). */
+const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/u
+
+/**
+ * Normalize and validate expert env var rows.
+ * @param raw - candidate rows.
+ */
+export function normalizeEnvVars(raw: readonly ExpertEnvVar[]): ExpertEnvVar[] {
+  const out: ExpertEnvVar[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const name = item.name.trim()
+    const value = typeof item.value === 'string' ? item.value : ''
+    if (name === '') continue
+    if (!ENV_NAME_RE.test(name)) {
+      throw new SkillExpertsError('env-name-invalid', `invalid env name "${name}"`)
+    }
+    if (seen.has(name)) {
+      throw new SkillExpertsError('env-name-duplicate', `duplicate env name "${name}"`)
+    }
+    seen.add(name)
+    out.push({ name, value })
+  }
+  return out
+}
+
+function parseEnvVars(raw: unknown): ExpertEnvVar[] {
+  if (!Array.isArray(raw)) return []
+  const loose: ExpertEnvVar[] = []
+  for (const item of raw) {
+    if (item === null || typeof item !== 'object') continue
+    const row = item as { name?: unknown; value?: unknown }
+    if (typeof row.name !== 'string') continue
+    const name = row.name.trim()
+    if (name === '') continue
+    const value = typeof row.value === 'string' ? row.value : ''
+    loose.push({ name, value })
+  }
+  try {
+    return normalizeEnvVars(loose)
+  } catch {
+    // Legacy / hand-edited meta: keep first valid unique names, drop invalids.
+    const out: ExpertEnvVar[] = []
+    const seen = new Set<string>()
+    for (const entry of loose) {
+      if (!ENV_NAME_RE.test(entry.name) || seen.has(entry.name)) continue
+      seen.add(entry.name)
+      out.push(entry)
+    }
+    return out
+  }
+}
 
 /**
  * Current package seed ids. Used when `meta.json` omits `builtin` so older
@@ -103,14 +158,24 @@ function readMeta(id: string): ExpertMeta {
   const description = typeof raw.description === 'string' ? raw.description : ''
   const avatar = typeof raw.avatar === 'string' && raw.avatar.trim() !== '' ? raw.avatar : '🧠'
   const persona = typeof raw.persona === 'string' ? raw.persona : ''
+  const envVars = parseEnvVars(raw.envVars)
   const builtin = resolveBuiltin(id, raw.builtin)
-  return { id, name, description, avatar, persona, builtin }
+  return {
+    id,
+    name,
+    description,
+    avatar,
+    persona,
+    ...(envVars.length > 0 ? { envVars } : {}),
+    builtin,
+  }
 }
 
 function writeMeta(meta: ExpertMeta): void {
   mkdirSync(expertDir(meta.id), { recursive: true })
   mkdirSync(expertSkillsDir(meta.id), { recursive: true })
-  const payload = {
+  const envVars = meta.envVars === undefined ? [] : normalizeEnvVars(meta.envVars)
+  const payload: Record<string, unknown> = {
     id: meta.id,
     name: meta.name,
     description: meta.description,
@@ -118,6 +183,7 @@ function writeMeta(meta: ExpertMeta): void {
     persona: meta.persona,
     builtin: meta.builtin === true,
   }
+  if (envVars.length > 0) payload.envVars = envVars
   writeFileSync(expertMetaPath(meta.id), `${JSON.stringify(payload, undefined, 2)}\n`, 'utf8')
 }
 
@@ -173,6 +239,7 @@ function toDetail(meta: ExpertMeta, enabled: boolean): ExpertDetail {
     description: meta.description,
     avatar: meta.avatar,
     persona: meta.persona,
+    envVars: meta.envVars ?? [],
     skillCount: skills.length,
     presetId: presetIdFor(meta.id),
     source: sourceOf(meta),
@@ -331,7 +398,35 @@ export function saveExpert(input: ExpertSaveInput): ExpertDetail {
     description,
     avatar,
     persona,
+    envVars: previous.envVars,
     builtin: previous.builtin === true,
+  })
+  writeCatalog({ revision: catalog.revision + 1, experts: catalog.experts })
+  return getExpert(id)
+}
+
+/**
+ * Replace an expert's declared env vars on disk and sync to custom-env.
+ * @param ctx - Host context (needs custom-env).
+ * @param id - expert id.
+ * @param next - full replacement list.
+ */
+export async function replaceExpertEnv(
+  ctx: Context,
+  id: string,
+  next: readonly ExpertEnvVar[],
+): Promise<ExpertDetail> {
+  const catalog = readCatalog()
+  if (!catalog.experts.includes(id)) {
+    throw new SkillExpertsError('expert-not-found', `expert "${id}" not found`)
+  }
+  const previous = readMeta(id)
+  const normalized = normalizeEnvVars(next)
+  const api = requireCustomEnv(ctx)
+  await syncEnvToCustomEnv(api, previous.envVars ?? [], normalized)
+  writeMeta({
+    ...previous,
+    envVars: normalized,
   })
   writeCatalog({ revision: catalog.revision + 1, experts: catalog.experts })
   return getExpert(id)

@@ -6,7 +6,7 @@
  * so cold-boot gateway / welcome RPC are not blocked waiting for those services.
  */
 import type { Context } from '@deepseek-ai/cordis';
-export type { CatalogFile, ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput, SkillSummary, } from './types.ts';
+export type { CatalogFile, ExpertDetail, ExpertEnvVar, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput, SkillSummary, } from './types.ts';
 /** Cordis plugin name (loader entry). */
 export declare const name = "skill-experts";
 /** Wait for Host tool / prompt services before registering summon tools. */

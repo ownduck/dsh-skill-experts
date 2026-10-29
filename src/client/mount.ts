@@ -50,6 +50,8 @@ function registerMainPanel(ctx: Context): void {
       exportExpert: async id => call(await remote.exportExpert(id)),
       exportExperts: async ids => call(await remote.exportExperts(ids)),
       importExpert: async zipBase64 => call(await remote.importExpert(zipBase64)),
+      customEnvStatus: async () => call(await remote.customEnvStatus()),
+      saveExpertEnv: async (id, entries) => call(await remote.saveExpertEnv(id, entries)),
     }
   }
   ctx.slots.inject('main', () => ctx.slots.register({

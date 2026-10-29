@@ -22,6 +22,9 @@ const REASON_KEYS = new Set<string>([
   'zip-invalid-layout',
   'zip-missing-skill-md',
   'zip-missing-meta',
+  'custom-env-missing',
+  'env-name-invalid',
+  'env-name-duplicate',
   'generic',
 ])
 

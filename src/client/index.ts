@@ -32,6 +32,8 @@ declare module '@deepseek-ai/dsh-api-remotes/client' {
       exportExpert(id: string): Promise<{ ok: true; value: { filename: string; zipBase64: string } } | { ok: false; error: unknown }>
       exportExperts(ids: readonly string[]): Promise<{ ok: true; value: { filename: string; zipBase64: string } } | { ok: false; error: unknown }>
       importExpert(zipBase64: string): Promise<{ ok: true; value: { count: number; ids: readonly string[] } } | { ok: false; error: unknown }>
+      customEnvStatus(): Promise<{ ok: true; value: { available: boolean } } | { ok: false; error: unknown }>
+      saveExpertEnv(id: string, entries: readonly import('../types.ts').ExpertEnvVar[]): Promise<{ ok: true; value: import('../types.ts').ExpertDetail } | { ok: false; error: unknown }>
     }
   }
 }

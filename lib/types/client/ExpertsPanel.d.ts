@@ -1,6 +1,6 @@
 /** Main panel: expert list with edit / skills / skill-editor modals. */
 import { type ReactNode } from 'react';
-import type { ExpertDetail, ExpertSummary, SkillDetail } from '../types.ts';
+import type { ExpertDetail, ExpertEnvVar, ExpertSummary, SkillDetail } from '../types.ts';
 import type { ExpertsKey } from './locales.ts';
 export interface ExpertsPanelInjected {
     readonly t: (key: ExpertsKey) => string;
@@ -38,5 +38,9 @@ export interface ExpertsPanelInjected {
         count: number;
         ids: readonly string[];
     }>;
+    readonly customEnvStatus: () => Promise<{
+        available: boolean;
+    }>;
+    readonly saveExpertEnv: (id: string, entries: readonly ExpertEnvVar[]) => Promise<ExpertDetail>;
 }
-export declare function ExpertsPanel({ t, list, get, saveExpert, deleteExpert, setEnabled, getSkill, saveSkill, deleteSkill, importZip, exportExpert, exportExperts, importExpert, }: ExpertsPanelInjected): ReactNode;
+export declare function ExpertsPanel({ t, list, get, saveExpert, deleteExpert, setEnabled, getSkill, saveSkill, deleteSkill, importZip, exportExpert, exportExperts, importExpert, customEnvStatus, saveExpertEnv, }: ExpertsPanelInjected): ReactNode;

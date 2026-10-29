@@ -121,6 +121,22 @@ declare module '@deepseek-ai/dsh-api-remotes/client' {
                 ok: false;
                 error: unknown;
             }>;
+            customEnvStatus(): Promise<{
+                ok: true;
+                value: {
+                    available: boolean;
+                };
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
+            saveExpertEnv(id: string, entries: readonly import('../types.ts').ExpertEnvVar[]): Promise<{
+                ok: true;
+                value: import('../types.ts').ExpertDetail;
+            } | {
+                ok: false;
+                error: unknown;
+            }>;
         };
     }
 }

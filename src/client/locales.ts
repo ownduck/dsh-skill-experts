@@ -33,6 +33,17 @@ export const zh = {
 
   'expert.manageSkills': '管理技能',
   'expert.edit': '编辑专家',
+  'expert.editEnv': '编辑环境变量',
+
+  'env.title': '环境变量',
+  'env.name': '名称',
+  'env.value': '值',
+  'env.actions': '操作',
+  'env.empty': '暂无环境变量',
+  'env.namePlaceholder': '如 MY_API_KEY',
+  'env.valuePlaceholder': '默认值（可空）',
+  'env.confirmDelete': '确认删除该环境变量？',
+  'env.validationName': '名称须为字母/下划线开头的标识符，且不可重复',
   'expert.modalNewTitle': '新建专家',
   'expert.modalEditTitle': '编辑专家',
   'expert.name': '专家名称',
@@ -108,6 +119,9 @@ export const zh = {
   'error.zip-invalid-layout': 'zip 布局无效：请使用根目录 SKILL.md，或每个文件夹内各有一份 SKILL.md',
   'error.zip-missing-skill-md': '缺少 SKILL.md',
   'error.zip-missing-meta': '缺少 meta.json',
+  'error.custom-env-missing': '未安装 custom-env 插件，请先安装 @woosau/dsh-custom-env',
+  'error.env-name-invalid': '环境变量名称无效',
+  'error.env-name-duplicate': '环境变量名称重复',
 } satisfies Record<string, string>
 
 /** The skill-experts namespace key union. */
@@ -143,6 +157,17 @@ export const en = {
 
   'expert.manageSkills': 'Manage skills',
   'expert.edit': 'Edit expert',
+  'expert.editEnv': 'Edit environment variables',
+
+  'env.title': 'Environment variables',
+  'env.name': 'Name',
+  'env.value': 'Value',
+  'env.actions': 'Actions',
+  'env.empty': 'No environment variables',
+  'env.namePlaceholder': 'e.g. MY_API_KEY',
+  'env.valuePlaceholder': 'Default value (may be empty)',
+  'env.confirmDelete': 'Delete this environment variable?',
+  'env.validationName': 'Name must be a letter/underscore identifier and unique',
   'expert.modalNewTitle': 'New expert',
   'expert.modalEditTitle': 'Edit expert',
   'expert.name': 'Expert name',
@@ -218,4 +243,7 @@ export const en = {
   'error.zip-invalid-layout': 'Invalid zip layout: use a root SKILL.md, or folders each with SKILL.md',
   'error.zip-missing-skill-md': 'Missing SKILL.md',
   'error.zip-missing-meta': 'Missing meta.json',
+  'error.custom-env-missing': 'custom-env is not installed; add @woosau/dsh-custom-env first',
+  'error.env-name-invalid': 'Invalid environment variable name',
+  'error.env-name-duplicate': 'Duplicate environment variable name',
 } satisfies Record<ExpertsKey, string>

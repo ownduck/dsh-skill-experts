@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict'
+import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, it } from 'node:test'
 import JSZip from 'jszip'
 import { getExpert, saveExpert, saveSkill } from '../src/catalog.ts'
 import { exportExpertZip, exportExpertsZip, importExpertZip } from '../src/expert-zip.ts'
 import { withTempDshHome, type TempDshHome } from './helpers/temp-dsh-home.ts'
+
+/** Context stub — envVars-less zips never call custom-env. */
+function emptyCtx(): Context {
+  return { get: () => undefined } as unknown as Context
+}
 
 describe('expert-zip', () => {
   let fixture: TempDshHome | undefined
@@ -47,7 +53,7 @@ describe('expert-zip', () => {
     assert.equal(meta.id, undefined)
     assert.equal(meta.builtin, undefined)
 
-    const imported = await importExpertZip(pack.bytes)
+    const imported = await importExpertZip(emptyCtx(), pack.bytes)
     assert.equal(imported.count, 1)
     assert.equal(imported.ids.length, 1)
     const detail = getExpert(imported.ids[0]!)
@@ -57,6 +63,7 @@ describe('expert-zip', () => {
     assert.equal(detail.persona, 'You review code carefully.')
     assert.equal(detail.skills.length, 1)
     assert.equal(detail.skills[0]?.name, 'review-diff')
+    assert.deepEqual(detail.envVars, [])
   })
 
   it('batch-exports folder-per-expert and imports multiple customs', async () => {
@@ -89,7 +96,7 @@ describe('expert-zip', () => {
     assert.ok(names.includes('ji-shu-xie-zuo/meta.json'))
     assert.ok(!names.includes('meta.json'))
 
-    const imported = await importExpertZip(pack.bytes)
+    const imported = await importExpertZip(emptyCtx(), pack.bytes)
     assert.equal(imported.count, 2)
     assert.equal(imported.ids.length, 2)
     const namesImported = imported.ids.map(id => getExpert(id).name).sort()

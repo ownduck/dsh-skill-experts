@@ -1,4 +1,5 @@
 /** Export / import skill experts as zip packages (single or batch). */
+import type { Context } from '@deepseek-ai/cordis';
 import { exportSlug } from './export-slug.ts';
 export interface ExpertZipExport {
     readonly filename: string;
@@ -20,7 +21,8 @@ export declare function exportExpertZip(id: string): Promise<ExpertZipExport>;
 export declare function exportExpertsZip(ids: readonly string[]): Promise<ExpertZipExport>;
 /**
  * Import a single-expert or multi-expert zip as new custom experts.
+ * @param ctx - Host context (required when the zip declares envVars).
  * @param bytes - zip contents.
  */
-export declare function importExpertZip(bytes: Uint8Array): Promise<ExpertZipImportResult>;
+export declare function importExpertZip(ctx: Context, bytes: Uint8Array): Promise<ExpertZipImportResult>;
 export { exportSlug };

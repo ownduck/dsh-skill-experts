@@ -9,8 +9,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import {
-  deleteExpert, deleteSkill, ensureSeeded, getExpert, getSkill, listExperts, saveExpert, saveSkill, setEnabled,
+  deleteExpert, deleteSkill, ensureSeeded, getExpert, getSkill, listExperts, replaceExpertEnv, saveExpert, saveSkill,
+  setEnabled,
 } from './catalog.ts'
+import { customEnvAvailable } from './custom-env-bridge.ts'
 import {
   getContinueChat as readContinueChat,
   setContinueChat as writeContinueChat,
@@ -18,11 +20,14 @@ import {
 import { isSkillExpertsError, type SkillExpertsReason } from './errors.ts'
 import { exportExpertZip, exportExpertsZip, importExpertZip } from './expert-zip.ts'
 import { ExpertPresetSync } from './preset-sync.ts'
-import type { ExpertDetail, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput } from './types.ts'
+import type {
+  ExpertDetail, ExpertEnvVar, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput,
+} from './types.ts'
 import { importSkillsZip } from './zip-import.ts'
 
 export type {
-  CatalogFile, ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput, SkillSummary,
+  CatalogFile, ExpertDetail, ExpertEnvVar, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput,
+  SkillSummary,
 } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -180,6 +185,30 @@ export default class SkillExpertsRemote extends TypertRemoteService {
   }
 
   /**
+   * Whether `@woosau/dsh-custom-env` is loaded on this Host.
+   */
+  @Remote('customEnvStatus')
+  async customEnvStatus(): Promise<{ readonly available: boolean }> {
+    return { available: customEnvAvailable(this.ctx) }
+  }
+
+  /**
+   * Replace an expert's declared env vars and sync them to custom-env.
+   * @param id - expert id.
+   * @param entries - full replacement list (empty values allowed).
+   */
+  @Remote('saveExpertEnv')
+  async saveExpertEnv(id: string, entries: readonly ExpertEnvVar[]): Promise<ExpertDetail> {
+    try {
+      const detail = await replaceExpertEnv(this.ctx, id, entries)
+      await this.presets.sync()
+      return detail
+    } catch (error) {
+      wrap(error, 'skill-experts/invalid', id)
+    }
+  }
+
+  /**
    * Delete an expert.
    * @param id - expert id.
    */
@@ -280,7 +309,7 @@ export default class SkillExpertsRemote extends TypertRemoteService {
   async importExpert(zipBase64: string): Promise<{ readonly count: number; readonly ids: readonly string[] }> {
     try {
       const bytes = Uint8Array.from(Buffer.from(zipBase64, 'base64'))
-      const result = await importExpertZip(bytes)
+      const result = await importExpertZip(this.ctx, bytes)
       await this.presets.sync()
       return result
     } catch (error) {

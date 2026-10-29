@@ -10,7 +10,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { registerSummonTools } from './summon.ts'
 
 export type {
-  CatalogFile, ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput, SkillSummary,
+  CatalogFile, ExpertDetail, ExpertEnvVar, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput,
+  SkillSummary,
 } from './types.ts'
 
 /** Cordis plugin name (loader entry). */

@@ -19,6 +19,9 @@ export type SkillExpertsReason =
   | 'zip-invalid-layout'
   | 'zip-missing-skill-md'
   | 'zip-missing-meta'
+  | 'custom-env-missing'
+  | 'env-name-invalid'
+  | 'env-name-duplicate'
 
 /** Host-side failure carrying a stable reason; English message is diagnostic only. */
 export class SkillExpertsError extends Error {

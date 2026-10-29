@@ -7,8 +7,8 @@
  */
 import type { Context } from '@deepseek-ai/cordis';
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
-import type { ExpertDetail, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput } from './types.ts';
-export type { CatalogFile, ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput, SkillSummary, } from './types.ts';
+import type { ExpertDetail, ExpertEnvVar, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput } from './types.ts';
+export type { CatalogFile, ExpertDetail, ExpertEnvVar, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput, SkillSummary, } from './types.ts';
 declare module '@deepseek-ai/cordis' {
     interface Context {
         skillExperts: SkillExpertsRemote;
@@ -64,6 +64,18 @@ export default class SkillExpertsRemote extends TypertRemoteService {
      * @param input - expert fields.
      */
     saveExpert(input: ExpertSaveInput): Promise<ExpertDetail>;
+    /**
+     * Whether `@woosau/dsh-custom-env` is loaded on this Host.
+     */
+    customEnvStatus(): Promise<{
+        readonly available: boolean;
+    }>;
+    /**
+     * Replace an expert's declared env vars and sync them to custom-env.
+     * @param id - expert id.
+     * @param entries - full replacement list (empty values allowed).
+     */
+    saveExpertEnv(id: string, entries: readonly ExpertEnvVar[]): Promise<ExpertDetail>;
     /**
      * Delete an expert.
      * @param id - expert id.

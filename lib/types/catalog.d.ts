@@ -1,5 +1,11 @@
 /** Disk catalog and expert/skill CRUD under `$DSH_HOME/skill-experts`. */
-import type { ExpertDetail, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput } from './types.ts';
+import type { Context } from '@deepseek-ai/cordis';
+import type { ExpertDetail, ExpertEnvVar, ExpertMeta, ExpertSaveInput, ExpertSummary, SkillDetail, SkillSaveInput } from './types.ts';
+/**
+ * Normalize and validate expert env var rows.
+ * @param raw - candidate rows.
+ */
+export declare function normalizeEnvVars(raw: readonly ExpertEnvVar[]): ExpertEnvVar[];
 declare function readMeta(id: string): ExpertMeta;
 /**
  * Ensure seed experts exist and stamp builtin / enablement defaults.
@@ -24,6 +30,13 @@ export declare function getExpert(id: string): ExpertDetail;
 export declare function setEnabled(id: string, enabled: boolean): ExpertDetail;
 /** Create or update expert metadata. */
 export declare function saveExpert(input: ExpertSaveInput): ExpertDetail;
+/**
+ * Replace an expert's declared env vars on disk and sync to custom-env.
+ * @param ctx - Host context (needs custom-env).
+ * @param id - expert id.
+ * @param next - full replacement list.
+ */
+export declare function replaceExpertEnv(ctx: Context, id: string, next: readonly ExpertEnvVar[]): Promise<ExpertDetail>;
 /** Delete a custom expert and its files. Built-in experts cannot be removed. */
 export declare function deleteExpert(id: string): void;
 /** Load skill editor payload. */

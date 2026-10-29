@@ -2,13 +2,14 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, posix } from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
 import JSZip from 'jszip'
-import { getExpert, saveExpert, saveSkill } from './catalog.ts'
+import { getExpert, normalizeEnvVars, replaceExpertEnv, saveExpert, saveSkill } from './catalog.ts'
 import { SkillExpertsError } from './errors.ts'
 import { exportSlug } from './export-slug.ts'
 import { expertSkillsDir, isKebabName, skillDir, skillMdPath } from './paths.ts'
 import { parseSkillMd } from './skill-md.ts'
-import type { ExpertDetail } from './types.ts'
+import type { ExpertDetail, ExpertEnvVar } from './types.ts'
 
 export interface ExpertZipExport {
   readonly filename: string
@@ -25,6 +26,7 @@ type ExpertMetaPayload = {
   readonly description: string
   readonly avatar: string
   readonly persona: string
+  readonly envVars: readonly ExpertEnvVar[]
 }
 
 /**
@@ -58,9 +60,10 @@ export async function exportExpertsZip(ids: readonly string[]): Promise<ExpertZi
 
 /**
  * Import a single-expert or multi-expert zip as new custom experts.
+ * @param ctx - Host context (required when the zip declares envVars).
  * @param bytes - zip contents.
  */
-export async function importExpertZip(bytes: Uint8Array): Promise<ExpertZipImportResult> {
+export async function importExpertZip(ctx: Context, bytes: Uint8Array): Promise<ExpertZipImportResult> {
   const zip = await JSZip.loadAsync(bytes)
   const entries = Object.keys(zip.files).filter(name => !zip.files[name]!.dir)
   if (entries.length === 0) throw new SkillExpertsError('zip-empty', 'zip is empty')
@@ -73,7 +76,7 @@ export async function importExpertZip(bytes: Uint8Array): Promise<ExpertZipImpor
 
   const ids: string[] = []
   for (const prefix of packs) {
-    const detail = await importOneExpert(zip, normalized, prefix)
+    const detail = await importOneExpert(ctx, zip, normalized, prefix)
     ids.push(detail.id)
   }
   return { count: ids.length, ids }
@@ -98,6 +101,7 @@ function detectExpertPacks(normalized: readonly string[]): string[] {
 }
 
 async function importOneExpert(
+  ctx: Context,
   zip: JSZip,
   normalized: readonly string[],
   prefix: string,
@@ -106,7 +110,15 @@ async function importOneExpert(
   const metaEntry = zip.file(metaPath)
   if (metaEntry === null) throw new SkillExpertsError('zip-missing-meta', `missing ${metaPath}`)
   const meta = parseMeta(JSON.parse(await metaEntry.async('string')))
-  const detail = saveExpert(meta)
+  let detail = saveExpert({
+    name: meta.name,
+    description: meta.description,
+    avatar: meta.avatar,
+    persona: meta.persona,
+  })
+  if (meta.envVars.length > 0) {
+    detail = await replaceExpertEnv(ctx, detail.id, meta.envVars)
+  }
   const skillsPrefix = `${prefix}skills/`
 
   const skillFolders = new Set<string>()
@@ -163,6 +175,7 @@ function parseMeta(raw: unknown): ExpertMetaPayload {
     description?: unknown
     avatar?: unknown
     persona?: unknown
+    envVars?: unknown
   }
   const name = typeof metaRaw.name === 'string' ? metaRaw.name.trim() : ''
   const description = typeof metaRaw.description === 'string' ? metaRaw.description.trim() : ''
@@ -172,17 +185,43 @@ function parseMeta(raw: unknown): ExpertMetaPayload {
   const persona = typeof metaRaw.persona === 'string' ? metaRaw.persona.trim() : ''
   if (name === '') throw new SkillExpertsError('name-required', 'expert name is required')
   if (persona === '') throw new SkillExpertsError('persona-required', 'expert persona prompt is required')
-  return { name, description, avatar, persona }
+  const envVars = parseExportEnvVars(metaRaw.envVars)
+  return { name, description, avatar, persona, envVars }
+}
+
+function parseExportEnvVars(raw: unknown): ExpertEnvVar[] {
+  if (!Array.isArray(raw)) return []
+  const loose: ExpertEnvVar[] = []
+  for (const item of raw) {
+    if (item === null || typeof item !== 'object') continue
+    const row = item as { name?: unknown; value?: unknown }
+    if (typeof row.name !== 'string') continue
+    const name = row.name.trim()
+    if (name === '') continue
+    loose.push({ name, value: typeof row.value === 'string' ? row.value : '' })
+  }
+  return normalizeEnvVars(loose)
+}
+
+/** Export values: live `process.env` when set (including empty), else meta default. */
+function exportEnvVars(detail: ExpertDetail): ExpertEnvVar[] {
+  return detail.envVars.map(entry => ({
+    name: entry.name,
+    value: process.env[entry.name] !== undefined ? process.env[entry.name]! : entry.value,
+  }))
 }
 
 function addExpertToZip(zip: JSZip, expertId: string, prefix: string): void {
   const detail = getExpert(expertId)
-  zip.file(`${prefix}meta.json`, `${JSON.stringify({
+  const envVars = exportEnvVars(detail)
+  const payload: Record<string, unknown> = {
     name: detail.name,
     description: detail.description,
     avatar: detail.avatar,
     persona: detail.persona,
-  }, undefined, 2)}\n`)
+  }
+  if (envVars.length > 0) payload.envVars = envVars
+  zip.file(`${prefix}meta.json`, `${JSON.stringify(payload, undefined, 2)}\n`)
 
   const skillsRoot = expertSkillsDir(expertId)
   if (!existsSync(skillsRoot)) return

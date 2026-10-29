@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ExpertDetail, ExpertSource, ExpertSummary, SkillDetail } from '../types.ts'
+import type { ExpertDetail, ExpertEnvVar, ExpertSource, ExpertSummary, SkillDetail } from '../types.ts'
 import { AVATAR_CHOICES, DEFAULT_AVATAR } from './avatars.ts'
+import { EnvModal } from './EnvModal.tsx'
 import styles from './ExpertsPanel.module.css'
 import { formatRemoteError } from './format-remote-error.ts'
 import type { ExpertsKey } from './locales.ts'
@@ -38,6 +39,28 @@ function IconEdit(): ReactNode {
         strokeLinejoin="round"
       />
       <path d="M13.5 6.5 17.5 10.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconEnv(): ReactNode {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M7 8h10M7 12h6M7 16h8"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <rect
+        x="3.5"
+        y="4.5"
+        width="17"
+        height="15"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
     </svg>
   )
 }
@@ -137,6 +160,8 @@ export interface ExpertsPanelInjected {
   readonly exportExpert: (id: string) => Promise<{ filename: string; zipBase64: string }>
   readonly exportExperts: (ids: readonly string[]) => Promise<{ filename: string; zipBase64: string }>
   readonly importExpert: (zipBase64: string) => Promise<{ count: number; ids: readonly string[] }>
+  readonly customEnvStatus: () => Promise<{ available: boolean }>
+  readonly saveExpertEnv: (id: string, entries: readonly ExpertEnvVar[]) => Promise<ExpertDetail>
 }
 
 type SourceFilter = 'all' | ExpertSource
@@ -148,6 +173,10 @@ type ExpertDialog =
   | { kind: 'edit'; id: string }
 
 type SkillsDialog =
+  | { kind: 'closed' }
+  | { kind: 'open'; id: string }
+
+type EnvDialog =
   | { kind: 'closed' }
   | { kind: 'open'; id: string }
 
@@ -171,10 +200,11 @@ function downloadBase64Zip(filename: string, zipBase64: string): void {
 
 export function ExpertsPanel({
   t, list, get, saveExpert, deleteExpert, setEnabled, getSkill, saveSkill, deleteSkill, importZip,
-  exportExpert, exportExperts, importExpert,
+  exportExpert, exportExperts, importExpert, customEnvStatus, saveExpertEnv,
 }: ExpertsPanelInjected): ReactNode {
   const [dialog, setDialog] = useState<ExpertDialog>({ kind: 'closed' })
   const [skillsDialog, setSkillsDialog] = useState<SkillsDialog>({ kind: 'closed' })
+  const [envDialog, setEnvDialog] = useState<EnvDialog>({ kind: 'closed' })
   const [skillDialog, setSkillDialog] = useState<SkillDialog>({ kind: 'closed' })
   const [skillsTick, setSkillsTick] = useState(0)
   const [rows, setRows] = useState<readonly ExpertSummary[] | null>(null)
@@ -547,6 +577,15 @@ export function ExpertsPanel({
                 >
                   <IconEdit />
                 </button>
+                <button
+                  type="button"
+                  className={styles.cardAction}
+                  aria-label={t('expert.editEnv')}
+                  title={t('expert.editEnv')}
+                  onClick={() => setEnvDialog({ kind: 'open', id: row.id })}
+                >
+                  <IconEnv />
+                </button>
               </div>
             </article>
           ))}
@@ -568,9 +607,28 @@ export function ExpertsPanel({
         onDeleted={async () => {
           setDialog({ kind: 'closed' })
           setSkillsDialog({ kind: 'closed' })
+          setEnvDialog({ kind: 'closed' })
           setSkillDialog({ kind: 'closed' })
           await reload()
         }}
+      />
+      <EnvModal
+        t={t}
+        open={envDialog.kind === 'open'}
+        expertId={envDialog.kind === 'open' ? envDialog.id : ''}
+        expertLabel={(() => {
+          if (envDialog.kind !== 'open' || rows === null) return ''
+          const row = rows.find(item => item.id === envDialog.id)
+          return row === undefined ? '' : `${row.avatar} ${row.name}`
+        })()}
+        getEnv={async id => (await get(id)).envVars}
+        customEnvStatus={customEnvStatus}
+        saveExpertEnv={async (id, entries) => {
+          await saveExpertEnv(id, entries)
+        }}
+        busy={busy}
+        setBusy={setBusy}
+        onClose={() => setEnvDialog({ kind: 'closed' })}
       />
       <SkillsModal
         t={t}

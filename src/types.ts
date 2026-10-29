@@ -16,10 +16,19 @@ export interface ExpertSummary {
   readonly enabled: boolean
 }
 
+/** Declared environment variable for an expert (default value for export/import). */
+export interface ExpertEnvVar {
+  readonly name: string
+  /** Default / last-confirmed value; empty string allowed. */
+  readonly value: string
+}
+
 /** Full expert record for editors. */
 export interface ExpertDetail extends ExpertSummary {
   /** Persona system prompt (SKILL.md body analogue). */
   readonly persona: string
+  /** Required env vars declared on this expert. */
+  readonly envVars: readonly ExpertEnvVar[]
   readonly skills: readonly SkillSummary[]
   readonly rootPath: string
 }
@@ -68,6 +77,8 @@ export interface ExpertMeta {
   readonly description: string
   readonly avatar: string
   readonly persona: string
+  /** Declared env vars; omit or empty when none. */
+  readonly envVars?: readonly ExpertEnvVar[]
   /** Seed experts are built-in; omit or false means custom. */
   readonly builtin?: boolean
 }
