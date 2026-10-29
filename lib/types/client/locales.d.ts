@@ -35,6 +35,7 @@ export declare const zh: {
     'env.namePlaceholder': string;
     'env.valuePlaceholder': string;
     'env.validationName': string;
+    'env.builtinEmpty': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;
@@ -146,6 +147,7 @@ export declare const en: {
     'env.namePlaceholder': string;
     'env.valuePlaceholder': string;
     'env.validationName': string;
+    'env.builtinEmpty': string;
     'expert.modalNewTitle': string;
     'expert.modalEditTitle': string;
     'expert.name': string;

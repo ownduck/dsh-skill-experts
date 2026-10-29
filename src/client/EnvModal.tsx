@@ -343,6 +343,8 @@ export function EnvModal(props: EnvModalProps): ReactNode {
 
         {loading ? (
           <p className={css.empty}>{t('panel.loading')}</p>
+        ) : namesLocked && keys.length === 0 ? (
+          <p className={css.empty}>{t('env.builtinEmpty')}</p>
         ) : (
           <div className={css.list}>
             {keys.map(key => {
