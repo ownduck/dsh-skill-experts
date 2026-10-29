@@ -14,6 +14,25 @@ import { presetIdFor } from './paths.ts'
 const LIST = 'list_skill_experts'
 const SUMMON = 'summon_skill_expert'
 
+/** One enabled expert line for the model-facing catalog. */
+export type ExpertCatalogEntry = {
+  readonly name: string
+  readonly description: string
+  readonly id: string
+}
+
+/**
+ * Skill-style catalog lines: ``- `name`: description`` (id kept for summon).
+ * @param entries - Enabled experts.
+ * @returns Model-facing bullet lines.
+ */
+export function renderExpertCatalogEntries(entries: readonly ExpertCatalogEntry[]): string[] {
+  return entries.map(entry => {
+    const summary = entry.description.trim() === '' ? '(no description)' : entry.description.trim()
+    return `- \`${entry.name}\`: ${summary} (id: ${entry.id})`
+  })
+}
+
 type ContentBlock = { readonly type: string; readonly text?: string }
 
 type SubagentResult = {
@@ -184,9 +203,9 @@ export function registerSummonTools(ctx: Context): () => void {
   const listTool = {
     name: LIST,
     description:
-      'List enabled skill experts managed by dsh-skill-experts '
-      + '(id, name, avatar, skillCount, presetId, source). '
-      + 'Call this before summon_skill_expert only when the user did not name an expert. '
+      'List enabled skill experts (id, name, description, avatar, skillCount, presetId, source). '
+      + 'The session system prompt already lists each enabled expert name and description. '
+      + 'Call this only when that catalog is insufficient to choose an expert. '
       + 'Do not use the generic subagent tool for these experts.',
     parameters: {
       type: 'object',
@@ -219,6 +238,8 @@ export function registerSummonTools(ctx: Context): () => void {
       + '(persona + isolated skills) and return its answer to the parent. '
       + 'If the user message contains a skill-expert chip or @DisplayName for this expert, '
       + 'you MUST call this immediately (once per named expert). '
+      + 'If the user did not name an expert but the task clearly matches an enabled expert\'s '
+      + 'description in the Skill experts catalog, call this with that expert\'s name or id. '
       + 'Do not greet or answer that @ mention yourself first. '
       + 'Pass a short task brief from the remaining user text. '
       + 'When continue-chat is on for this session, the same expert reuses its prior child. '
@@ -229,7 +250,7 @@ export function registerSummonTools(ctx: Context): () => void {
       properties: {
         expert: {
           type: 'string',
-          description: 'Expert id or exact display name from list_skill_experts.',
+          description: 'Expert id or exact display name from the Skill experts catalog.',
         },
         task: {
           type: 'string',
@@ -364,9 +385,7 @@ export function registerSummonTools(ctx: Context): () => void {
       }
       const parentId = context?.agent?.id
       const continueOn = typeof parentId === 'string' && getContinueChat(parentId)
-      const lines = experts
-        .map(row => `- ${row.name} (id: ${row.id}, source: ${row.source}, skills: ${row.skillCount})`)
-        .join('\n')
+      const lines = renderExpertCatalogEntries(experts).join('\n')
       return [
         '## Skill experts',
         'This Host provides domain skill experts (each backed by an Agent Preset with persona + skills).',
@@ -377,16 +396,21 @@ export function registerSummonTools(ctx: Context): () => void {
         'once for **each** named expert before any user-facing reply to that @ mention.',
         'Use the remaining user text as `task`. Even a short greeting is a valid task — still summon.',
         'Do not answer the @ mention yourself first. Wait for each tool `answer`, then briefly synthesize.',
+        '',
+        'If the user did not name an expert, but the task clearly matches an enabled expert\'s description',
+        'in the catalog below, call `summon_skill_expert` with that expert\'s exact display name or id',
+        'before doing the work yourself. This catalog is summaries only; summon to use the expert.',
         continueOn
           ? 'Continue-chat is on for this session: keep calling `summon_skill_expert` for the same expert '
             + '(do not switch to `send_message`); the Host reuses that expert\'s prior child when possible.'
           : '',
         '',
-        'Call `list_skill_experts` only when the user did not name an expert but the task clearly matches one.',
+        'Call `list_skill_experts` only when the catalog below is insufficient to choose an expert.',
         'Do not use the generic `subagent` or `subagent_fork` tools in place of `summon_skill_expert` for these experts.',
         '',
-        'Enabled experts:',
+        '<available_skill_experts>',
         lines,
+        '</available_skill_experts>',
       ].filter(line => line !== '').join('\n')
     },
   })

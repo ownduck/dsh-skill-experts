@@ -48,10 +48,11 @@ dsh plugin --profile desktop remove @woosau/dsh-skill-experts
 ## Usage
 
 1. Open the **Skill experts** sidebar; create or edit experts and enable them
-2. In the composer, click **Skill experts**, or type `@` and pick from the **Skill experts** group
-3. Write the task and send; the main session summons that expert and synthesizes the result
-4. Turn on **Continue** if you want the next summon of the same expert to resume that child session
-5. Optionally choose an expert as the session Agent preset (separate from `@` summon)
+2. Write a clear **description** (when to use this expert) — the main agent sees name + description like a skill catalog
+3. In the composer, click **Skill experts**, or type `@` and pick from the **Skill experts** group; or just describe the task so it matches a description
+4. Send; the main session summons that expert and synthesizes the result
+5. Turn on **Continue** if you want the next summon of the same expert to resume that child session
+6. Optionally choose an expert as the session Agent preset (separate from `@` summon)
 
 ### Expert package format
 
