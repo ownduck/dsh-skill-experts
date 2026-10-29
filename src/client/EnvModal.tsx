@@ -306,6 +306,7 @@ export function EnvModal(props: EnvModalProps): ReactNode {
 
   const newDraft = drafts[NEW_KEY] ?? emptyCell()
   const newDirty = newDraft.name.trim() !== '' || newDraft.value !== ''
+  const builtinEmpty = namesLocked && !loading && keys.length === 0
 
   return (
     <Modal
@@ -319,14 +320,16 @@ export function EnvModal(props: EnvModalProps): ReactNode {
           <button type="button" className={css.ghostBtn} onClick={props.onClose} disabled={props.busy}>
             {t('action.cancel')}
           </button>
-          <button
-            type="button"
-            className={css.primaryBtn}
-            onClick={() => { void save() }}
-            disabled={disabled}
-          >
-            {t('action.save')}
-          </button>
+          {builtinEmpty ? null : (
+            <button
+              type="button"
+              className={css.primaryBtn}
+              onClick={() => { void save() }}
+              disabled={disabled}
+            >
+              {t('action.save')}
+            </button>
+          )}
         </div>
       )}
     >
