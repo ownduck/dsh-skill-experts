@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import { requireCustomEnv, syncEnvToCustomEnv } from './custom-env-bridge.ts'
 import { SkillExpertsError } from './errors.ts'
+import { exportSlug } from './export-slug.ts'
 import {
   catalogPath, expertDir, expertMetaPath, expertSkillsDir, expertsRoot, isKebabName, presetIdFor, skillDir, skillMdPath,
 } from './paths.ts'
@@ -249,10 +250,13 @@ function toDetail(meta: ExpertMeta, enabled: boolean): ExpertDetail {
   }
 }
 
+/**
+ * Allocate a new on-disk expert id from the display name (pinyin kebab via {@link exportSlug}).
+ * @param name - Expert display name.
+ */
 function allocExpertId(name: string): string {
-  const base = name.trim().toLowerCase().replace(/[^a-z0-9]+/gu, '-').replace(/^-+|-+$/gu, '') || 'expert'
-  let id = isKebabName(base) ? base : `expert-${base.replace(/[^a-z0-9-]/gu, '') || 'x'}`
-  if (!isKebabName(id)) id = `expert-${Date.now().toString(36)}`
+  const slug = exportSlug(name)
+  let id = isKebabName(slug) ? slug : `expert-${Date.now().toString(36)}`
   const catalog = readCatalog()
   if (!catalog.experts.includes(id) && !existsSync(expertDir(id))) return id
   let n = 2
