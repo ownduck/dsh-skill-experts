@@ -21,7 +21,7 @@
 .header,
 .row {
   display: grid;
-  grid-template-columns: minmax(140px, 0.9fr) minmax(0, 1.5fr) 36px;
+  grid-template-columns: minmax(140px, 0.9fr) minmax(0, 1.5fr) 108px;
   gap: 10px;
   align-items: center;
   min-width: 0;
@@ -54,33 +54,57 @@
   min-width: 0;
 }
 
-.trashBtn {
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: 8px;
+  justify-content: end;
+  width: 108px;
+}
+
+.slot {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot[data-empty='true'] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.iconButton {
   display: inline-flex;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-secondary);
   cursor: pointer;
 }
 
-.trashBtn:hover:not(:disabled) {
-  color: var(--dsw-alias-label-danger, #c62828);
-  background: color-mix(in srgb, var(--dsw-alias-label-danger, #c62828) 8%, transparent);
+.iconButton:hover:not(:disabled) {
+  background: color-mix(in srgb, CanvasText 6%, transparent);
+  color: var(--dsw-alias-label-primary, CanvasText);
 }
 
-.trashBtn:disabled {
+.iconButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.trashSlot {
-  width: 36px;
-  height: 32px;
+.iconButtonPrimary {
+  color: var(--dsw-alias-label-accent, #1a73e8);
+}
+
+.iconButtonDanger {
+  color: var(--dsw-alias-label-danger, #c62828);
 }
 
 .footer {

@@ -31,6 +31,7 @@ export declare const zh: {
     'env.title': string;
     'env.name': string;
     'env.value': string;
+    'env.actions': string;
     'env.namePlaceholder': string;
     'env.valuePlaceholder': string;
     'env.validationName': string;
@@ -140,6 +141,7 @@ export declare const en: {
     'env.title': string;
     'env.name': string;
     'env.value': string;
+    'env.actions': string;
     'env.namePlaceholder': string;
     'env.valuePlaceholder': string;
     'env.validationName': string;

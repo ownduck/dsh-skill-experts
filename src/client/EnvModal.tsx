@@ -1,7 +1,9 @@
-/** Expert env-var editor: local drafts until Save persists via custom-env. */
+/** Expert env-var editor: row Confirm/Cancel for local checks; Save persists. */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
+  IconCheckOutlineRegular,
+  IconCloseOutlineRegular,
   IconTrashOutlineRegular,
   Input,
   Modal,
@@ -13,14 +15,10 @@ import { formatRemoteError } from './format-remote-error.ts'
 import type { ExpertsKey } from './locales.ts'
 
 const NAME_OK = /^[A-Za-z_][A-Za-z0-9_]*$/u
+const NEW_KEY = '__new__'
 
 type Translate = (key: ExpertsKey) => string
-
-interface DraftRow {
-  readonly key: string
-  name: string
-  value: string
-}
+type Cell = { name: string; value: string }
 
 export interface EnvModalProps {
   readonly t: Translate
@@ -41,46 +39,86 @@ function allocKey(): string {
   return `env-row-${rowSeq}`
 }
 
-function emptyRow(): DraftRow {
-  return { key: allocKey(), name: '', value: '' }
+function emptyCell(): Cell {
+  return { name: '', value: '' }
 }
 
-function withTrailingEmpty(rows: readonly DraftRow[]): DraftRow[] {
-  if (rows.length === 0) return [emptyRow()]
-  const last = rows[rows.length - 1]!
-  if (last.name === '' && last.value === '') return [...rows]
-  return [...rows, emptyRow()]
-}
-
-function fromEntries(entries: readonly ExpertEnvVar[]): DraftRow[] {
-  return withTrailingEmpty(entries.map(entry => ({
-    key: allocKey(),
-    name: entry.name,
-    value: entry.value,
-  })))
-}
-
-function collectEntries(rows: readonly DraftRow[]): ExpertEnvVar[] | { error: 'invalid' | 'duplicate' } {
+function collectEntries(
+  keys: readonly string[],
+  accepted: Readonly<Record<string, Cell>>,
+): ExpertEnvVar[] | { error: 'invalid' | 'duplicate' } {
   const out: ExpertEnvVar[] = []
   const seen = new Set<string>()
-  for (const row of rows) {
-    const name = row.name.trim()
+  for (const key of keys) {
+    const cell = accepted[key]
+    if (cell === undefined) continue
+    const name = cell.name.trim()
     if (name === '') continue
     if (!NAME_OK.test(name)) return { error: 'invalid' }
     if (seen.has(name)) return { error: 'duplicate' }
     seen.add(name)
-    out.push({ name, value: row.value })
+    out.push({ name, value: cell.value })
   }
   return out
+}
+
+function IconAction({
+  label, disabled, onClick, danger, primary, children,
+}: {
+  label: string
+  disabled?: boolean
+  onClick: () => void
+  danger?: boolean
+  primary?: boolean
+  children: ReactNode
+}): ReactNode {
+  return (
+    <Tooltip portal label={label} side="top" delayMs={400}>
+      <button
+        type="button"
+        className={[css.iconButton, danger ? css.iconButtonDanger : '', primary ? css.iconButtonPrimary : '']
+          .filter(Boolean)
+          .join(' ')}
+        aria-label={label}
+        title={label}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  )
+}
+
+function Slot({ empty, children }: { empty: boolean; children: ReactNode }): ReactNode {
+  return <div className={css.slot} data-empty={empty ? 'true' : 'false'}>{empty ? null : children}</div>
 }
 
 /** Expert environment variables modal. */
 export function EnvModal(props: EnvModalProps): ReactNode {
   const { t, open, expertId } = props
   const [available, setAvailable] = useState<boolean | null>(null)
-  const [rows, setRows] = useState<DraftRow[]>([emptyRow()])
+  const [keys, setKeys] = useState<readonly string[]>([])
+  const [accepted, setAccepted] = useState<Record<string, Cell>>({})
+  const [drafts, setDrafts] = useState<Record<string, Cell>>({ [NEW_KEY]: emptyCell() })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const resetFromEntries = useCallback((entries: readonly ExpertEnvVar[]) => {
+    const nextKeys: string[] = []
+    const nextAccepted: Record<string, Cell> = {}
+    const nextDrafts: Record<string, Cell> = { [NEW_KEY]: emptyCell() }
+    for (const entry of entries) {
+      const key = allocKey()
+      nextKeys.push(key)
+      const cell = { name: entry.name, value: entry.value }
+      nextAccepted[key] = cell
+      nextDrafts[key] = { ...cell }
+    }
+    setKeys(nextKeys)
+    setAccepted(nextAccepted)
+    setDrafts(nextDrafts)
+  }, [])
 
   const reload = useCallback(async () => {
     if (expertId === '') return
@@ -89,20 +127,22 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     try {
       const status = await props.customEnvStatus()
       setAvailable(status.available)
-      setRows(fromEntries(await props.getEnv(expertId)))
+      resetFromEntries(await props.getEnv(expertId))
     } catch (err) {
       setError(formatRemoteError(err, t))
       setAvailable(false)
-      setRows([emptyRow()])
+      resetFromEntries([])
     } finally {
       setLoading(false)
     }
-  }, [expertId, props.customEnvStatus, props.getEnv, t])
+  }, [expertId, props.customEnvStatus, props.getEnv, resetFromEntries, t])
 
   useEffect(() => {
     if (!open) {
       setAvailable(null)
-      setRows([emptyRow()])
+      setKeys([])
+      setAccepted({})
+      setDrafts({ [NEW_KEY]: emptyCell() })
       setError('')
       setLoading(false)
       return
@@ -110,17 +150,85 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     void reload()
   }, [open, reload])
 
+  const taken = useMemo(() => {
+    const names = new Set<string>()
+    for (const key of keys) {
+      const name = accepted[key]?.name.trim()
+      if (name) names.add(name)
+    }
+    return names
+  }, [keys, accepted])
+
   const missingPlugin = available === false
   const disabled = props.busy || loading || missingPlugin
 
-  const updateRow = (key: string, patch: Partial<Pick<DraftRow, 'name' | 'value'>>): void => {
-    setRows(previous => withTrailingEmpty(previous.map(row => (
-      row.key === key ? { ...row, ...patch } : row
-    ))))
+  const setDraft = (key: string, patch: Partial<Cell>): void => {
+    setDrafts(previous => ({
+      ...previous,
+      [key]: {
+        name: patch.name ?? previous[key]?.name ?? '',
+        value: patch.value ?? previous[key]?.value ?? '',
+      },
+    }))
+  }
+
+  const confirmRow = (key: string): void => {
+    const draft = drafts[key] ?? emptyCell()
+    const name = draft.name.trim()
+    if (name === '') {
+      setError(t('env.validationName'))
+      return
+    }
+    if (!NAME_OK.test(name)) {
+      setError(t('env.validationName'))
+      return
+    }
+    const previousName = key === NEW_KEY ? undefined : accepted[key]?.name.trim()
+    if (name !== previousName && taken.has(name)) {
+      setError(t('error.env-name-duplicate'))
+      return
+    }
+    setError('')
+    if (key === NEW_KEY) {
+      const created = allocKey()
+      const cell = { name, value: draft.value }
+      setKeys(previous => [...previous, created])
+      setAccepted(previous => ({ ...previous, [created]: cell }))
+      setDrafts(previous => ({
+        ...previous,
+        [created]: { ...cell },
+        [NEW_KEY]: emptyCell(),
+      }))
+      return
+    }
+    const cell = { name, value: draft.value }
+    setAccepted(previous => ({ ...previous, [key]: cell }))
+    setDrafts(previous => ({ ...previous, [key]: { ...cell } }))
+  }
+
+  const cancelRow = (key: string): void => {
+    setError('')
+    if (key === NEW_KEY) {
+      setDrafts(previous => ({ ...previous, [NEW_KEY]: emptyCell() }))
+      return
+    }
+    const cell = accepted[key] ?? emptyCell()
+    setDrafts(previous => ({ ...previous, [key]: { ...cell } }))
   }
 
   const removeRow = (key: string): void => {
-    setRows(previous => withTrailingEmpty(previous.filter(row => row.key !== key)))
+    setError('')
+    setKeys(previous => previous.filter(item => item !== key))
+    setAccepted(previous => {
+      const next = { ...previous }
+      delete next[key]
+      return next
+    })
+    setDrafts(previous => {
+      const next = { ...previous }
+      delete next[key]
+      return next
+    })
   }
 
   const save = async (): Promise<void> => {
@@ -128,7 +236,23 @@ export function EnvModal(props: EnvModalProps): ReactNode {
       setError(t('error.custom-env-missing'))
       return
     }
-    const collected = collectEntries(rows)
+    // Build the persist payload from current drafts (row Confirm is local-only).
+    const nextAccepted: Record<string, Cell> = {}
+    const nextKeys: string[] = []
+    for (const key of keys) {
+      const draft = drafts[key] ?? accepted[key] ?? emptyCell()
+      const name = draft.name.trim()
+      if (name === '') continue
+      nextKeys.push(key)
+      nextAccepted[key] = { name, value: draft.value }
+    }
+    const newDraft = drafts[NEW_KEY] ?? emptyCell()
+    if (newDraft.name.trim() !== '') {
+      const created = allocKey()
+      nextKeys.push(created)
+      nextAccepted[created] = { name: newDraft.name.trim(), value: newDraft.value }
+    }
+    const collected = collectEntries(nextKeys, nextAccepted)
     if ('error' in collected) {
       setError(collected.error === 'duplicate' ? t('error.env-name-duplicate') : t('env.validationName'))
       return
@@ -151,6 +275,9 @@ export function EnvModal(props: EnvModalProps): ReactNode {
     : missingPlugin
       ? t('error.custom-env-missing')
       : undefined
+
+  const newDraft = drafts[NEW_KEY] ?? emptyCell()
+  const newDirty = newDraft.name.trim() !== '' || newDraft.value !== ''
 
   return (
     <Modal
@@ -190,42 +317,105 @@ export function EnvModal(props: EnvModalProps): ReactNode {
           <p className={css.empty}>{t('panel.loading')}</p>
         ) : (
           <div className={css.list}>
-            {rows.map((row, index) => {
-              const isTrailingEmpty = index === rows.length - 1 && row.name === '' && row.value === ''
+            {keys.map(key => {
+              const base = accepted[key] ?? emptyCell()
+              const draft = drafts[key] ?? base
+              const dirty = draft.name !== base.name || draft.value !== base.value
               return (
-                <div key={row.key} className={css.row}>
+                <div key={key} className={css.row}>
                   <Input
-                    value={row.name}
+                    value={draft.name}
                     disabled={disabled}
-                    onChange={event => updateRow(row.key, { name: event.target.value })}
-                    placeholder={isTrailingEmpty ? t('env.namePlaceholder') : undefined}
+                    onChange={event => setDraft(key, { name: event.target.value })}
                     aria-label={t('env.name')}
                   />
                   <Input
-                    value={row.value}
+                    value={draft.value}
                     disabled={disabled}
-                    onChange={event => updateRow(row.key, { value: event.target.value })}
-                    placeholder={isTrailingEmpty ? t('env.valuePlaceholder') : undefined}
+                    onChange={event => setDraft(key, { value: event.target.value })}
                     aria-label={t('env.value')}
                   />
-                  {isTrailingEmpty ? (
-                    <div className={css.trashSlot} aria-hidden="true" />
-                  ) : (
-                    <Tooltip portal label={t('action.delete')} side="top" delayMs={400}>
-                      <button
-                        type="button"
-                        className={css.trashBtn}
-                        aria-label={t('action.delete')}
+                  <div className={css.actions} role="group" aria-label={t('env.actions')}>
+                    <Slot empty={!dirty}>
+                      {dirty ? (
+                        <IconAction
+                          label={t('action.confirm')}
+                          primary
+                          disabled={disabled}
+                          onClick={() => confirmRow(key)}
+                        >
+                          <IconCheckOutlineRegular size={14} />
+                        </IconAction>
+                      ) : null}
+                    </Slot>
+                    <Slot empty={!dirty}>
+                      {dirty ? (
+                        <IconAction
+                          label={t('action.cancel')}
+                          disabled={disabled}
+                          onClick={() => cancelRow(key)}
+                        >
+                          <IconCloseOutlineRegular size={14} />
+                        </IconAction>
+                      ) : null}
+                    </Slot>
+                    <Slot empty={false}>
+                      <IconAction
+                        label={t('action.delete')}
+                        danger
                         disabled={disabled}
-                        onClick={() => removeRow(row.key)}
+                        onClick={() => removeRow(key)}
                       >
-                        <IconTrashOutlineRegular size={16} />
-                      </button>
-                    </Tooltip>
-                  )}
+                        <IconTrashOutlineRegular size={14} />
+                      </IconAction>
+                    </Slot>
+                  </div>
                 </div>
               )
             })}
+
+            <div className={css.row}>
+              <Input
+                value={newDraft.name}
+                disabled={disabled}
+                onChange={event => setDraft(NEW_KEY, { name: event.target.value })}
+                placeholder={t('env.namePlaceholder')}
+                aria-label={t('env.name')}
+              />
+              <Input
+                value={newDraft.value}
+                disabled={disabled}
+                onChange={event => setDraft(NEW_KEY, { value: event.target.value })}
+                placeholder={t('env.valuePlaceholder')}
+                aria-label={t('env.value')}
+              />
+              <div className={css.actions} role="group" aria-label={t('env.actions')}>
+                <Slot empty={!newDirty}>
+                  {newDirty ? (
+                    <IconAction
+                      label={t('action.confirm')}
+                      primary
+                      disabled={disabled}
+                      onClick={() => confirmRow(NEW_KEY)}
+                    >
+                      <IconCheckOutlineRegular size={14} />
+                    </IconAction>
+                  ) : null}
+                </Slot>
+                <Slot empty={!newDirty}>
+                  {newDirty ? (
+                    <IconAction
+                      label={t('action.cancel')}
+                      disabled={disabled}
+                      onClick={() => cancelRow(NEW_KEY)}
+                    >
+                      <IconCloseOutlineRegular size={14} />
+                    </IconAction>
+                  ) : null}
+                </Slot>
+                <Slot empty />
+              </div>
+            </div>
           </div>
         )}
       </div>
