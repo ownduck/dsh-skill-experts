@@ -46,7 +46,7 @@ export function ComposerExpertsButton(props: ComposerExpertsButtonProps): ReactN
   })
   const [error, setError] = useState('')
   const [placement, setPlacement] = useState<'above' | 'below'>('above')
-  const [continueChat, setContinueChatState] = useState(false)
+  const [continueChat, setContinueChatState] = useState(true)
   const [continueBusy, setContinueBusy] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const genRef = useRef(0)

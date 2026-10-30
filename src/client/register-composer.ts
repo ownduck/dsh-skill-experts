@@ -168,7 +168,8 @@ export function registerComposerExperts(ctx: Context): () => void {
       getContinueChat: async () => {
         const remote = ctx.remote.skillExperts
         const result = await remote.getContinueChat(String(sessionId))
-        return result.ok && result.value === true
+        // Default on when the preference is missing or the peek fails.
+        return result.ok ? result.value : true
       },
       setContinueChat: async (enabled: boolean) => {
         const remote = ctx.remote.skillExperts

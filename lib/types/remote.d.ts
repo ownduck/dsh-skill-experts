@@ -43,7 +43,7 @@ export default class SkillExpertsRemote extends TypertRemoteService {
     getContinueChat(sessionId: string): Promise<boolean>;
     /**
      * Turn continue-chat on or off for this main session.
-     * Turning off drops stored child-session pointers for that parent.
+     * Turning off keeps child pointers so a later turn-on can resume.
      * @param sessionId - durable parent session id.
      * @param enabled - desired preference.
      */

@@ -9,8 +9,16 @@ export interface ContinueFile {
     readonly revision: number;
     readonly byParent: Readonly<Record<string, ContinueParentEntry>>;
 }
+/** Catalog row used for label fallback discovery. */
+export interface ContinuableChildHint {
+    readonly id: string;
+    readonly mode: string;
+    readonly label?: string;
+    readonly createdAt?: number;
+}
 /**
  * Whether continue-chat is enabled for this parent session.
+ * Missing preference defaults to on; only an explicit stored `false` turns it off.
  * @param parentSessionId - durable main session id.
  */
 export declare function getContinueChat(parentSessionId: string): boolean;
@@ -41,18 +49,6 @@ export declare function setChildId(parentSessionId: string, expertId: string, ch
  * @param expertId - stable expert id.
  */
 export declare function clearChildId(parentSessionId: string, expertId: string): void;
-/**
- * Clear every child pointer for a parent (used when turning continue off).
- * @param parentSessionId - durable main session id.
- */
-export declare function clearChildren(parentSessionId: string): void;
-/** Catalog row used for label fallback discovery. */
-export interface ContinuableChildHint {
-    readonly id: string;
-    readonly mode: string;
-    readonly label?: string;
-    readonly createdAt?: number;
-}
 /**
  * Resolve a child session id: disk map first, then newest continuable child
  * whose label matches the expert display name.

@@ -38,5 +38,24 @@ describe('preset isolation', () => {
     const personaConfig = persona.config as { complete?: boolean; prefix?: string }
     assert.equal(personaConfig.complete, true)
     assert.equal(personaConfig.prefix, 'Stay in your lane.')
+
+    const toolFs = definition.plugins.find(plugin => plugin.id === 'tool-fs')
+    assert.ok(toolFs !== undefined)
+    const fsConfig = toolFs.config as {
+      read?: boolean
+      readImage?: boolean
+      write?: boolean
+      edit?: boolean
+    }
+    assert.equal(fsConfig.write, true)
+    assert.equal(fsConfig.edit, true)
+
+    const toolBash = definition.plugins.find(plugin => plugin.id === 'tool-bash')
+    assert.ok(toolBash !== undefined)
+    assert.deepEqual(toolBash.disabled, { __jsExpr: "process.platform === 'win32'" })
+
+    const toolPwsh = definition.plugins.find(plugin => plugin.id === 'tool-pwsh')
+    assert.ok(toolPwsh !== undefined)
+    assert.deepEqual(toolPwsh.disabled, { __jsExpr: "process.platform !== 'win32'" })
   })
 })

@@ -20,18 +20,20 @@ describe('continue-mode', () => {
     fixture = undefined
   })
 
-  it('defaults continue-chat off and persists on enable', () => {
+  it('defaults continue-chat on and persists an explicit off', () => {
     fixture = withTempDshHome('dsh-skill-experts-continue-')
     const parent = 'session-a'
-    assert.equal(getContinueChat(parent), false)
-    assert.equal(setContinueChat(parent, true), true)
     assert.equal(getContinueChat(parent), true)
+    assert.equal(setContinueChat(parent, false), false)
+    assert.equal(getContinueChat(parent), false)
     const path = join(fixture.home, 'skill-experts', 'continue.json')
     assert.equal(existsSync(path), true)
     const raw = JSON.parse(readFileSync(path, 'utf8')) as {
       byParent: Record<string, { continue: boolean }>
     }
-    assert.equal(raw.byParent[parent]?.continue, true)
+    assert.equal(raw.byParent[parent]?.continue, false)
+    assert.equal(setContinueChat(parent, true), true)
+    assert.equal(getContinueChat(parent), true)
   })
 
   it('maps children by expert.id and keeps them when continue turns off', () => {
@@ -50,11 +52,21 @@ describe('continue-mode', () => {
   it('keeps a child written while continue is off for a later turn-on', () => {
     fixture = withTempDshHome('dsh-skill-experts-continue-off-write-')
     const parent = 'session-off'
+    assert.equal(setContinueChat(parent, false), false)
     assert.equal(getContinueChat(parent), false)
     setChildId(parent, 'tech-writer', 'child-while-off')
+    assert.equal(getContinueChat(parent), false)
     assert.equal(getChildId(parent, 'tech-writer'), 'child-while-off')
     assert.equal(setContinueChat(parent, true), true)
     assert.equal(getChildId(parent, 'tech-writer'), 'child-while-off')
+  })
+
+  it('setChildId does not flip the default-on preference to off', () => {
+    fixture = withTempDshHome('dsh-skill-experts-continue-child-default-')
+    const parent = 'session-default-child'
+    assert.equal(getContinueChat(parent), true)
+    setChildId(parent, 'tech-writer', 'child-1')
+    assert.equal(getContinueChat(parent), true)
   })
 
   it('resolveChildId prefers disk map over label fallback', () => {

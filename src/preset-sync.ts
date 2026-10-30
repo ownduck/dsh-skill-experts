@@ -69,9 +69,19 @@ export function buildDefinition(expertId: string): PresetDefinition {
         },
       },
       {
+        id: 'tool-bash',
+        name: '@deepseek-ai/dsh-tool-bash',
+        disabled: { __jsExpr: "process.platform === 'win32'" },
+      },
+      {
+        id: 'tool-pwsh',
+        name: '@deepseek-ai/dsh-tool-pwsh',
+        disabled: { __jsExpr: "process.platform !== 'win32'" },
+      },
+      {
         id: 'tool-fs',
         name: '@deepseek-ai/dsh-tool-fs',
-        config: { read: true, readImage: true, write: false, edit: false },
+        config: { read: true, readImage: true, write: true, edit: true },
       },
       {
         id: 'skill-filesystem',

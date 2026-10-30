@@ -15,13 +15,27 @@ export interface ContinueFile {
   readonly byParent: Readonly<Record<string, ContinueParentEntry>>
 }
 
+/** Catalog row used for label fallback discovery. */
+export interface ContinuableChildHint {
+  readonly id: string
+  readonly mode: string
+  readonly label?: string
+  readonly createdAt?: number
+}
+
+let cache: ContinueFile | undefined
+
 function emptyFile(): ContinueFile {
   return { revision: 0, byParent: {} }
 }
 
 function readRaw(): ContinueFile {
+  if (cache !== undefined) return cache
   const path = continuePath()
-  if (!existsSync(path)) return emptyFile()
+  if (!existsSync(path)) {
+    cache = emptyFile()
+    return cache
+  }
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as Partial<ContinueFile>
     const byParent: Record<string, ContinueParentEntry> = {}
@@ -45,27 +59,49 @@ function readRaw(): ContinueFile {
         }
       }
     }
-    return {
+    cache = {
       revision: typeof raw.revision === 'number' ? raw.revision : 0,
       byParent,
     }
+    return cache
   } catch {
-    return emptyFile()
+    cache = emptyFile()
+    return cache
   }
 }
 
 function writeRaw(file: ContinueFile): void {
+  cache = file
   writeFileSync(continuePath(), `${JSON.stringify(file, undefined, 2)}\n`, 'utf8')
+}
+
+/** Upsert one parent entry; preserves continue default-on when creating. */
+function upsertParent(
+  parentId: string,
+  next: (previous: ContinueParentEntry | undefined) => ContinueParentEntry,
+): void {
+  const current = readRaw()
+  const previous = current.byParent[parentId]
+  writeRaw({
+    revision: current.revision + 1,
+    byParent: {
+      ...current.byParent,
+      [parentId]: next(previous),
+    },
+  })
 }
 
 /**
  * Whether continue-chat is enabled for this parent session.
+ * Missing preference defaults to on; only an explicit stored `false` turns it off.
  * @param parentSessionId - durable main session id.
  */
 export function getContinueChat(parentSessionId: string): boolean {
   const id = parentSessionId.trim()
   if (id === '') return false
-  return readRaw().byParent[id]?.continue === true
+  const entry = readRaw().byParent[id]
+  if (entry === undefined) return true
+  return entry.continue
 }
 
 /**
@@ -78,27 +114,11 @@ export function getContinueChat(parentSessionId: string): boolean {
 export function setContinueChat(parentSessionId: string, enabled: boolean): boolean {
   const id = parentSessionId.trim()
   if (id === '') return false
-  const current = readRaw()
-  const previous = current.byParent[id]
-  if (!enabled) {
-    if (previous === undefined) return false
-    writeRaw({
-      revision: current.revision + 1,
-      byParent: {
-        ...current.byParent,
-        [id]: { continue: false, children: { ...previous.children } },
-      },
-    })
-    return false
-  }
-  writeRaw({
-    revision: current.revision + 1,
-    byParent: {
-      ...current.byParent,
-      [id]: { continue: true, children: { ...previous?.children } },
-    },
-  })
-  return true
+  upsertParent(id, previous => ({
+    continue: enabled,
+    children: { ...previous?.children },
+  }))
+  return enabled
 }
 
 /**
@@ -125,19 +145,10 @@ export function setChildId(parentSessionId: string, expertId: string, childSessi
   const expert = expertId.trim()
   const child = childSessionId.trim()
   if (parent === '' || expert === '' || child === '') return
-  const current = readRaw()
-  const previous = current.byParent[parent]
-  const children = { ...previous?.children, [expert]: child }
-  writeRaw({
-    revision: current.revision + 1,
-    byParent: {
-      ...current.byParent,
-      [parent]: {
-        continue: previous?.continue === true,
-        children,
-      },
-    },
-  })
+  upsertParent(parent, previous => ({
+    continue: previous === undefined ? true : previous.continue,
+    children: { ...previous?.children, [expert]: child },
+  }))
 }
 
 /**
@@ -149,44 +160,10 @@ export function clearChildId(parentSessionId: string, expertId: string): void {
   const parent = parentSessionId.trim()
   const expert = expertId.trim()
   if (parent === '' || expert === '') return
-  const current = readRaw()
-  const previous = current.byParent[parent]
+  const previous = readRaw().byParent[parent]
   if (previous === undefined || previous.children[expert] === undefined) return
   const { [expert]: _removed, ...children } = previous.children
-  writeRaw({
-    revision: current.revision + 1,
-    byParent: {
-      ...current.byParent,
-      [parent]: { continue: previous.continue, children },
-    },
-  })
-}
-
-/**
- * Clear every child pointer for a parent (used when turning continue off).
- * @param parentSessionId - durable main session id.
- */
-export function clearChildren(parentSessionId: string): void {
-  const parent = parentSessionId.trim()
-  if (parent === '') return
-  const current = readRaw()
-  const previous = current.byParent[parent]
-  if (previous === undefined) return
-  writeRaw({
-    revision: current.revision + 1,
-    byParent: {
-      ...current.byParent,
-      [parent]: { continue: previous.continue, children: {} },
-    },
-  })
-}
-
-/** Catalog row used for label fallback discovery. */
-export interface ContinuableChildHint {
-  readonly id: string
-  readonly mode: string
-  readonly label?: string
-  readonly createdAt?: number
+  upsertParent(parent, () => ({ continue: previous.continue, children }))
 }
 
 /**

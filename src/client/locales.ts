@@ -69,7 +69,7 @@ export const zh = {
 
   'composer.button': '技能专家',
   'composer.continue': '续聊',
-  'composer.continueHint': '本会话内同一专家接着聊',
+  'composer.continueHint': '开启后，同一会话再次召唤同一专家会接着上次继续；关闭则重新开聊',
   'composer.atSection': '技能专家',
   'composer.search': '搜索技能专家名称或简介',
   'composer.empty': '暂无已启用专家，输入关键词查找或到侧栏启用',
@@ -195,7 +195,7 @@ export const en = {
 
   'composer.button': 'Skill experts',
   'composer.continue': 'Continue',
-  'composer.continueHint': 'Reuse the same expert in this session',
+  'composer.continueHint': 'On: summoning the same expert again continues the prior chat. Off: start fresh.',
   'composer.atSection': 'Skill experts',
   'composer.search': 'Search skill experts by name or description',
   'composer.empty': 'No enabled experts. Try another keyword, or enable some in the sidebar.',
