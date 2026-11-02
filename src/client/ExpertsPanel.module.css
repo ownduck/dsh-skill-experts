@@ -30,7 +30,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .manageBar {
@@ -181,8 +182,8 @@
 
 .search {
   position: relative;
-  flex: 1;
-  min-width: 160px;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
 }
@@ -198,6 +199,7 @@
 .search input {
   box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   height: 34px;
   padding: 0 12px 0 36px;
   border-radius: 999px;
@@ -206,6 +208,7 @@
   color: CanvasText;
   font: inherit;
   font-size: 13px;
+  text-overflow: ellipsis;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 
@@ -242,26 +245,27 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* min(100%, 280px): one column when the panel itself is narrower than 280px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-auto-rows: min-content;
   gap: 14px;
   overflow: auto;
   min-height: 0;
   flex: 1;
   align-content: start;
-  align-items: stretch;
+  /* Content-sized cards — avoid stretch so export/footer spacing stays stable. */
+  align-items: start;
   padding-bottom: 8px;
-}
-
-@media (max-width: 720px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .card {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  /* overflow:hidden would zero the grid min-size and squash cards to fit the viewport. */
+  min-height: min-content;
   min-width: 0;
   border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
   border-radius: 12px;
@@ -272,10 +276,10 @@
 .cardBody {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   gap: 10px;
   padding: 16px 16px 12px;
-  min-height: 0;
+  min-width: 0;
 }
 
 .cardHeader {
@@ -361,20 +365,25 @@
 
 .cardDescription {
   margin: 0;
+  flex: 0 0 auto;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 20px;
+  /* Reserve two full lines so the second line is never half-clipped. */
+  min-height: 40px;
+  max-height: 40px;
   color: color-mix(in srgb, CanvasText 62%, transparent);
 }
 
 .cardMeta {
   display: flex;
   justify-content: flex-end;
-  margin-top: auto;
+  flex: 0 0 auto;
+  /* Keep a fixed gap from description via .cardBody gap — no margin-top: auto. */
 }
 
 .cardExport {
@@ -409,9 +418,8 @@
 
 .cardFooter {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   flex: 0 0 auto;
-  margin-top: auto;
   border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
 }
 

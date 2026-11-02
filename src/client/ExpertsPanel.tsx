@@ -556,11 +556,9 @@ export function ExpertsPanel({
                     </span>
                   </div>
                 </div>
-                {row.description !== '' && (
-                  <p className={styles.cardDescription} title={row.description}>
-                    {row.description}
-                  </p>
-                )}
+                <p className={styles.cardDescription} title={row.description || undefined}>
+                  {row.description}
+                </p>
                 <div className={styles.cardMeta}>
                   <button
                     type="button"
