@@ -1,4 +1,5 @@
-.modal {
+/* `div.` raises specificity above Modal's own `.dialog` width. */
+div.modal {
   width: min(640px, calc(100vw - 48px));
   max-height: min(820px, calc(100vh - 48px));
 }

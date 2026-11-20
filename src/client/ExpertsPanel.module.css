@@ -637,12 +637,14 @@
   cursor: not-allowed;
 }
 
-.modal {
+/* `div.` raises specificity above Modal's own `.dialog { width: min(380px, 100%) }`,
+   which otherwise wins depending on stylesheet order. */
+div.modal {
   width: min(720px, calc(100vw - 48px));
   max-height: min(860px, calc(100vh - 48px));
 }
 
-.skillsModal {
+div.skillsModal {
   width: min(840px, calc(100vw - 48px));
   max-height: min(860px, calc(100vh - 48px));
 }
