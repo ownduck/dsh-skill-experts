@@ -1,7 +1,7 @@
 /** Browser entry for skill experts. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import remote from '../../lib/typert.remote-client.js'
+import remote from '../typert.remote-client.js'
 import { mountSkillExperts } from './mount.ts'
 
 export { inject } from './mount.ts'

@@ -1,20 +1,13 @@
-/** Rebuild lib/index.js and lib/client.js using the sibling vertax-work esbuild. */
+/** Rebuild lib/index.js, lib/remote.js, lib/client.js, and the typert entry files using the esbuild devDependency. */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
+import * as esbuild from 'esbuild'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const monorepo = join(root, '..', 'vertax-work')
-const pnpm = join(monorepo, 'node_modules', '.pnpm')
-const esbuildDir = readdirSync(pnpm).find(name => name.startsWith('esbuild@0.28.2'))
-  ?? readdirSync(pnpm).find(name => name.startsWith('esbuild@0.28'))
-  ?? readdirSync(pnpm).find(name => name.startsWith('esbuild@'))
-if (esbuildDir === undefined) throw new Error('esbuild not found under vertax-work/node_modules/.pnpm')
-const require = createRequire(join(pnpm, esbuildDir, 'node_modules', 'esbuild', 'package.json'))
-const esbuild = require('esbuild')
 
 const clientExternals = [
   'react',
@@ -70,30 +63,10 @@ await esbuild.build({
   target: 'es2022',
   sourcemap: true,
   jsx: 'automatic',
-  nodePaths: [join(monorepo, 'node_modules')],
   external: clientExternals,
   plugins: [{
-    name: 'typert-remote-client',
-    setup(build) {
-      build.onResolve({ filter: /typert\.remote-client\.js$/ }, () => ({
-        path: join(root, 'lib', 'typert.remote-client.js'),
-      }))
-      const protocolRoot = join(monorepo, 'packages', 'typert', 'protocol')
-      const remoteInfoCandidates = [
-        join(protocolRoot, 'lib', 'types', 'remote-info.js'),
-        join(protocolRoot, 'src', 'remote-info.ts'),
-      ]
-      build.onResolve({ filter: /^@deepseek-ai\/dsh-typert-protocol\/remote-info$/ }, () => {
-        const path = remoteInfoCandidates.find(candidate => existsSync(candidate))
-        if (path === undefined) return undefined
-        return { path }
-      })
-    },
-  }, {
     name: 'css-inline',
     setup(build) {
-      const { createHash } = require('node:crypto')
-      const { readFileSync } = require('node:fs')
       const styleId = path => {
         const digest = createHash('sha1').update(path).digest('hex').slice(0, 10)
         return `dsh-skill-experts-css-${digest}`
@@ -163,7 +136,23 @@ await esbuild.build({
   },
 })
 
-const tsc = join(monorepo, 'node_modules', '.bin', 'tsc.CMD')
+// Hand-maintained typert entry files: src holds the JS and its declarations; lib receives both.
+for (const name of ['typert.host', 'typert.remote-client']) {
+  await esbuild.build({
+    absWorkingDir: root,
+    entryPoints: [join(root, 'src', `${name}.js`)],
+    outfile: join(root, 'lib', `${name}.js`),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node22',
+    sourcemap: false,
+    packages: 'external',
+  })
+  copyFileSync(join(root, 'src', `${name}.d.ts`), join(root, 'lib', `${name}.d.ts`))
+}
+
+const tsc = join(root, 'node_modules', 'typescript', 'bin', 'tsc')
 const tsconfig = join(root, 'tsconfig.build.json')
 writeFileSync(tsconfig, `${JSON.stringify({
   compilerOptions: {
@@ -183,7 +172,7 @@ writeFileSync(tsconfig, `${JSON.stringify({
   include: ['src/**/*.ts', 'src/**/*.tsx'],
 }, null, 2)}\n`)
 
-const result = spawnSync(tsc, ['-p', tsconfig], { cwd: root, encoding: 'utf8', shell: true })
+const result = spawnSync(process.execPath, [tsc, '-p', tsconfig], { cwd: root, encoding: 'utf8' })
 if (result.status !== 0) {
   process.stderr.write(result.stdout || '')
   process.stderr.write(result.stderr || '')
